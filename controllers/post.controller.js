@@ -15,17 +15,24 @@ module.exports = (postsRepository) => {
         postsRepository
           .getAllPosts()
           .then((data) => {
-            resolve(data);
+            if (data[0][0].length > 0) {
+              resolve(data[0][0]);
+            } else {
+              reject({
+                status: 404,
+                error: { message: "Posts not found." },
+              });
+            }
           })
           .catch(() => {
             reject({
-              status: 404,
-              error: { message: "Posts not found." },
+              status: 500,
+              error: { message: "Internal server error. (SQL)" },
             });
           });
       })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -36,19 +43,26 @@ module.exports = (postsRepository) => {
       new Promise((resolve, reject) => {
         const subredditName = req.params.subreddit;
         postsRepository
-          .getAllPostsFromSubreddit(subredditName) // change to ID
+          .getAllPostsFromSubreddit(subredditName)
           .then((data) => {
-            resolve(data);
+            if (data[0][0].length > 0) {
+              resolve(data[0][0]);
+            } else {
+              reject({
+                status: 404,
+                error: { message: "Posts not found." },
+              });
+            }
           })
           .catch(() => {
             reject({
-              status: 404,
-              error: { message: "Posts not found." },
+              status: 500,
+              error: { message: "Internal server error. (SQL)" },
             });
           });
       })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -58,37 +72,44 @@ module.exports = (postsRepository) => {
     getOnePost: (req, res) => {
       new Promise((resolve, reject) => {
         const postId = req.params.postId;
-        postsRepository
-          .checkIfPostExists(postId)
-          .then((data) => {
-            if (data[0][0][0]["COUNT(id)"] === 0) {
-              reject({
-                status: 404,
-                error: { message: "Post not found." },
-              });
-            } else {
-              postsRepository
-                .getOnePost(postId)
-                .then((data) => {
-                  resolve(data);
-                })
-                .catch(() => {
-                  reject({
-                    status: 404,
-                    error: { message: "Post not found." },
-                  });
+        if (postId) {
+          postsRepository
+            .checkIfPostExists(postId)
+            .then((data) => {
+              if (data[0][0][0]["COUNT(id)"] === 0) {
+                reject({
+                  status: 404,
+                  error: { message: "Post not found." },
                 });
-            }
-          })
-          .catch(() => {
-            reject({
-              status: 500,
-              error: { message: "Internal server error." },
+              } else {
+                postsRepository
+                  .getOnePost(postId)
+                  .then((data) => {
+                    resolve(data[0][0][0]);
+                  })
+                  .catch(() => {
+                    reject({
+                      status: 500,
+                      error: { message: "Internal server error. (SQL)" },
+                    });
+                  });
+              }
+            })
+            .catch(() => {
+              reject({
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
+              });
             });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing post ID." },
           });
+        }
       })
         .then((data) => {
-          res.status(200).json(data[0][0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -108,28 +129,31 @@ module.exports = (postsRepository) => {
                 postsRepository
                   .getUserPosts(userId)
                   .then((data) => {
-                    resolve(data);
+                    resolve(data[0][0]);
                   })
                   .catch(() => {
                     reject({
-                      status: 404,
-                      error: { message: "Posts not found." },
+                      status: 500,
+                      error: { message: "Internal server error. (SQL)" },
                     });
                   });
               }
             })
             .catch(() => {
-              reject({ status: 404, error: { message: "User not found." } });
+              reject({
+                status: 500,
+                error: { message: "Internal server error . (SQL)" },
+              });
             });
         } else {
           reject({
             status: 400,
-            error: { message: "Invalid/missing parameter/s." },
+            error: { message: "Invalid/missing user ID." },
           });
         }
       })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -141,20 +165,12 @@ module.exports = (postsRepository) => {
         const { title, body, userId, username, subredditId, subreddit } =
           req.body;
 
-        console.log({
-          title,
-          body,
-          userId,
-          username,
-          subredditId,
-          subreddit,
-        });
-
+        // no need to include body in if statement since body is optional
         if (title && userId && username && subreddit && subredditId) {
           if (isValidTitle(title)) {
             if (isValidPostBody(body)) {
               postsRepository
-                .checkIfSubredditExists(subreddit, subredditId)
+                .checkIfSubredditExists(subreddit)
                 .then((data) => {
                   if (data[0][0][0]["COUNT(name)"] === 0) {
                     reject({
@@ -197,8 +213,10 @@ module.exports = (postsRepository) => {
                             .catch((error) => {
                               console.log(error);
                               reject({
-                                status: 400,
-                                error: { message: "Invalid parameters?." },
+                                status: 500,
+                                error: {
+                                  message: "Internal server error. (SQL)",
+                                },
                               });
                             });
                         }
@@ -206,10 +224,16 @@ module.exports = (postsRepository) => {
                       .catch(() => {
                         reject({
                           status: 500,
-                          error: { message: "Internal server error." },
+                          error: { message: "Internal server error. (SQL)" },
                         });
                       });
                   }
+                })
+                .catch(() => {
+                  reject({
+                    status: 500,
+                    error: { message: "Internal server error. (SQL)" },
+                  });
                 });
             } else {
               reject({
@@ -243,38 +267,44 @@ module.exports = (postsRepository) => {
         const { message } = req.body;
         const postId = req.params.postId;
 
-        postsRepository
-          .checkIfPostExists(postId)
-          .then((data) => {
-            if (data[0][0][0]["COUNT(id)"] === 0) {
-              reject({
-                status: 404,
-                error: { message: "Post not found." },
-              });
-            } else {
-              postsRepository
-                .updatePostBody(postId, message)
-                .then(() => {
-                  resolve({
-                    id: postId,
-                    body: message,
-                  });
-                })
-                .catch(() => {
-                  reject({
-                    status: 500,
-                    error: { message: "Internal server error." },
-                  });
+        if (message && postId) {
+          postsRepository
+            .checkIfPostExists(postId)
+            .then((data) => {
+              if (data[0][0][0]["COUNT(id)"] === 0) {
+                reject({
+                  status: 404,
+                  error: { message: "Post not found." },
                 });
-            }
-          })
-          .catch((x) => {
-            console.log(x);
-            reject({
-              status: 404,
-              error: { message: "Post not found." },
+              } else {
+                postsRepository
+                  .updatePostBody(postId, message)
+                  .then(() => {
+                    resolve({
+                      id: postId,
+                      body: message,
+                    });
+                  })
+                  .catch(() => {
+                    reject({
+                      status: 500,
+                      error: { message: "Internal server error. (SQL)" },
+                    });
+                  });
+              }
+            })
+            .catch(() => {
+              reject({
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
+              });
             });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing parameters." },
           });
+        }
       })
         .then((data) => {
           res.status(200).json(data);

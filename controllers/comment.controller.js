@@ -7,17 +7,24 @@ module.exports = (commentsRepository) => {
         commentsRepository
           .getAllComments()
           .then((data) => {
-            resolve(data);
+            if (data[0][0].length > 0) {
+              resolve(data[0][0]);
+            } else {
+              reject({
+                status: 404,
+                error: { message: "Comments not found." },
+              });
+            }
           })
           .catch(() => {
             reject({
-              status: 404,
-              error: { message: "Comments not found." },
+              status: 500,
+              error: { message: "Internal server error. (SQL)" },
             });
           });
       })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -35,26 +42,26 @@ module.exports = (commentsRepository) => {
                 commentsRepository
                   .getPostComments(postId)
                   .then((data) => {
-                    resolve(data);
+                    resolve(data[0][0]);
                   })
                   .catch((err) => {
                     console.log(err);
                     reject({
-                      status: 404,
-                      error: { message: "Comments not found." },
+                      status: 500,
+                      error: { message: "Internal server error. (SQL)" },
                     });
                   });
               } else {
                 reject({
                   status: 404,
-                  error: { message: "Post does not exist." },
+                  error: { message: "Post not found." },
                 });
               }
             })
             .catch(() => {
               reject({
-                status: 404,
-                error: { message: "Post does not exist." },
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
               });
             });
         } else {
@@ -65,7 +72,7 @@ module.exports = (commentsRepository) => {
         }
       })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -83,53 +90,61 @@ module.exports = (commentsRepository) => {
             .checkIfPostExists(postId)
             .then((data) => {
               if (data[0][0][0]["COUNT(id)"] > 0) {
-                commentsRepository.checkIfIDExists(userId).then((data) => {
-                  if (data[0][0][0]["COUNT(id)"] > 0) {
-                    commentsRepository
-                      .createComment(
-                        id,
-                        userId,
-                        username,
-                        postId,
-                        parentId,
-                        comment,
-                        Date.now()
-                      )
-                      .then(() => {
-                        resolve({
-                          id: id,
-                          userId: userId,
-                          username: username,
-                          postId: postId,
-                          parentId: parentId,
-                          body: comment,
-                          createdAt: Date.now(),
+                commentsRepository
+                  .checkIfIDExists(userId)
+                  .then((data) => {
+                    if (data[0][0][0]["COUNT(id)"] > 0) {
+                      commentsRepository
+                        .createComment(
+                          id,
+                          userId,
+                          username,
+                          postId,
+                          parentId,
+                          comment,
+                          Date.now()
+                        )
+                        .then(() => {
+                          resolve({
+                            id: id,
+                            userId: userId,
+                            username: username,
+                            postId: postId,
+                            parentId: parentId,
+                            body: comment,
+                            createdAt: Date.now(),
+                          });
+                        })
+                        .catch(() => {
+                          reject({
+                            status: 500,
+                            error: { message: "Internal server error. (SQL)" },
+                          });
                         });
-                      })
-                      .catch(() => {
-                        reject({
-                          status: 500,
-                          error: { message: "Internal server error." },
-                        });
+                    } else {
+                      reject({
+                        status: 404,
+                        error: { message: "User not found." },
                       });
-                  } else {
+                    }
+                  })
+                  .catch(() => {
                     reject({
-                      status: 404,
-                      error: { message: "User does not exist." },
+                      status: 500,
+                      error: { message: "Internal server error. (SQL)" },
                     });
-                  }
-                });
+                  });
               } else {
                 reject({
                   status: 404,
-                  error: { message: "Post does not exist." },
+                  error: { message: "Post not found." },
                 });
               }
             })
             .catch(() =>
               reject({
-                status: 404,
-                error: { message: "Post does not exist." },
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
               })
             );
         } else {
@@ -140,7 +155,7 @@ module.exports = (commentsRepository) => {
         }
       })
         .then((data) => {
-          res.status(200).json(data);
+          res.status(201).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -154,19 +169,18 @@ module.exports = (commentsRepository) => {
         commentsRepository
           .checkIfCommentExists(commentId)
           .then((data) => {
-            console.log("DATA", data[0][0][0]);
             if (data[0][0][0]["COUNT(id)"] === 0) {
               reject({ status: 404, error: { message: "Comment not found." } });
             } else {
               commentsRepository
                 .getOneComment(commentId)
                 .then((data) => {
-                  resolve(data);
+                  resolve(data[0][0][0]);
                 })
                 .catch(() => {
                   reject({
                     status: 500,
-                    error: { message: "Internal server error." },
+                    error: { message: "Internal server error. (SQL)" },
                   });
                 });
             }
@@ -174,12 +188,12 @@ module.exports = (commentsRepository) => {
           .catch(() => {
             reject({
               status: 500,
-              error: { message: "Internal server error." },
+              error: { message: "Internal server error. (SQL)" },
             });
           });
       })
         .then((data) => {
-          res.status(200).json(data[0][0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -195,10 +209,17 @@ module.exports = (commentsRepository) => {
           commentsRepository
             .changeComment(commentId, comment)
             .then(() => {
-              resolve({ id: commentId, comment: comment });
+              resolve({
+                message: `Successfully edited comment with id: ${id}`,
+                id: commentId,
+                comment: comment,
+              });
             })
             .catch(() => {
-              reject({ status: 404, error: { message: "Comment not found." } });
+              reject({
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
+              });
             });
         } else {
           reject({
@@ -206,9 +227,13 @@ module.exports = (commentsRepository) => {
             error: { message: "Invalid/missing parameter/s." },
           });
         }
-      }).then((data) => {
-        res.status(200).json(data);
-      });
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
     },
 
     deleteComment: (req, res) => {
@@ -231,8 +256,8 @@ module.exports = (commentsRepository) => {
                 })
                 .catch(() => {
                   reject({
-                    status: 404,
-                    error: { message: "Comment not found." },
+                    status: 500,
+                    error: { message: "Internal server error. (SQL)" },
                   });
                 });
             }
@@ -240,7 +265,7 @@ module.exports = (commentsRepository) => {
           .catch(() => {
             reject({
               status: 500,
-              error: { message: "Internal server error" },
+              error: { message: "Internal server error. (SQL)" },
             });
           });
       })

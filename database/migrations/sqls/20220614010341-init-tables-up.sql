@@ -1,3 +1,4 @@
+-- !! VOTES ARE NOT IMPLEMENTED INTO THE API YET !!
 -- CREATING THE TABLES
 CREATE TABLE `users` (
   `ID` VARCHAR(21) NOT NULL PRIMARY KEY,
@@ -16,9 +17,10 @@ CREATE TABLE `posts` (
   `body` VARCHAR(40000) NOT NULL,
   `subredditId` VARCHAR(21) NOT NULL,
   `subreddit` VARCHAR(20) NOT NULL,
-  `createdAt` BIGINT NOT NULL,
+  `commentsCount` INT NOT NULL,
   `upvotes` INT NOT NULL,
-  `downvotes` INT NOT NULL
+  `downvotes` INT NOT NULL,
+  `createdAt` BIGINT NOT NULL
 );
 
 CREATE TABLE `comments` (
@@ -258,6 +260,7 @@ INSERT INTO
     subredditId,
     subreddit,
     createdAt,
+    commentsCount,
     upvotes,
     downvotes
   )
@@ -271,6 +274,7 @@ VALUES
     p_subredditId,
     p_subreddit,
     p_createdAt,
+    0,
     0,
     0
   );
@@ -346,17 +350,13 @@ WHERE
 
 END;
 
-CREATE PROCEDURE CheckIfSubredditExists(
-  p_subreddit VARCHAR(20),
-  p_subredditId VARCHAR(21)
-) BEGIN
+CREATE PROCEDURE CheckIfSubredditExists(p_subreddit VARCHAR(20)) BEGIN
 SELECT
   COUNT(name)
 FROM
   subreddits
 WHERE
-  name = p_subreddit
-  AND id = p_subredditId;
+  name = p_subreddit;
 
 END;
 
@@ -395,7 +395,7 @@ UPDATE
 SET
   description = p_description
 WHERE
-  id = p_id;
+  ID = p_id;
 
 END;
 
@@ -443,6 +443,13 @@ VALUES
     0,
     0
   );
+
+UPDATE
+  posts
+SET
+  commentsCount = commentsCount + 1
+WHERE
+  id = p_postid;
 
 END;
 

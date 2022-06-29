@@ -13,14 +13,14 @@ module.exports = (knex) => {
       ]);
     },
     checkIfSubredditExists: (name, id) => {
-      return knex.raw("CALL CheckIfSubredditExists(?, ?)", [name, id]);
+      return knex.raw("CALL CheckIfSubredditExists(?)", [name]);
     },
     getOneSubreddit: (id) => {
       return knex.raw("CALL GetOneSubreddit(?)", [id]);
     },
-    updateSubredditDescription: (name, description) => {
+    updateSubredditDescription: (id, description) => {
       return knex.raw("CALL UpdateSubredditDescription(?, ?)", [
-        name,
+        id,
         description,
       ]);
     },

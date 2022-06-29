@@ -22,20 +22,31 @@ module.exports = (subredditsRepository) => {
       new Promise((resolve, reject) => {
         subredditsRepository
           .getAllSubreddits()
-          .then(resolve)
+          .then((data) => {
+            if (data[0][0].length > 0) {
+              resolve(data[0][0]);
+            } else {
+              reject({
+                status: 404,
+                error: { message: "No subreddits found." },
+              });
+            }
+          })
           .catch(() => {
-            reject(res.status(404).json({ error: "No subreddits found." }));
+            reject({
+              status: 500,
+              error: { message: "Internal server error. (SQL)" },
+            });
           });
       })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
-        .catch(() => {
-          res.status(404).json({ error: { message: "No subreddits found." } });
+        .catch((error) => {
+          res.status(error.status).json(error.error);
         });
     },
 
-    // TODO: FIX ERROR HANDLING; CURRENTLY DOES NOT HANDLE IF SUBREDDIT ALREADY EXISTS
     getOneSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
         const subredditId = req.params.subredditId;
@@ -43,32 +54,38 @@ module.exports = (subredditsRepository) => {
           subredditsRepository
             .getOneSubreddit(subredditId)
             .then((data) => {
-              resolve(data);
+              if (data[0][0].length > 0) {
+                resolve(data[0][0][0]);
+              } else {
+                reject({
+                  status: 404,
+                  error: { message: "Subreddit not found." },
+                });
+              }
             })
             .catch(() => {
               reject(
                 res
-                  .status(404)
-                  .json({ error: { message: "Subreddit not found." } })
+                  .status(500)
+                  .json({ error: { message: "Internal server error. (SQL)" } })
               );
             });
         } else {
           reject(
             res
               .status(400)
-              .json({ error: { messasge: "Invalid/missing parameter." } })
+              .json({ error: { message: "Invalid/missing parameter." } })
           );
         }
       })
         .then((data) => {
-          res.status(200).json(data[0][0][0]);
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
         });
     },
 
-    // TODO: FIX ERROR HANDLING; CURRENTLY DOES NOT HANDLE IF SUBREDDIT ALREADY EXISTS FOR SOME REASON
     postSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
         const id = nanoid.nanoid();
@@ -79,9 +96,8 @@ module.exports = (subredditsRepository) => {
           if (isValidSubreddit(subredditName)) {
             if (isValidDescription(description)) {
               subredditsRepository
-                .checkIfSubredditExists(subredditName, id)
+                .checkIfSubredditExists(subredditName)
                 .then((data) => {
-                  console.log("DATA ", data[0][0][0]);
                   if (data[0][0][0]["COUNT(name)"] === 0) {
                     subredditsRepository
                       .createSubreddit(
@@ -102,14 +118,14 @@ module.exports = (subredditsRepository) => {
                       .catch(() => {
                         reject(
                           res
-                            .status(400)
-                            .json({ error: "Subreddit already exists." })
+                            .status(500)
+                            .json({ error: "Internal server error. (SQL)" })
                         );
                       });
                   } else {
                     reject(
                       res
-                        .status(400)
+                        .status(409)
                         .json({ error: "Subreddit already exists." })
                     );
                   }
@@ -117,39 +133,41 @@ module.exports = (subredditsRepository) => {
             } else {
               reject(
                 res
-                  .status(400)
+                  .status(403)
                   .json({ error: "Description must be from 0-255 characters." })
               );
             }
           } else {
             reject({
-              status: 400,
+              status: 403,
               error: { message: "Invalid subreddit name." },
             });
           }
         } else {
           reject({
             status: 404,
-            error: { message: "Missing title or description." },
+            error: { message: "Title or description not found." },
           });
         }
       })
         .then((subredditInfo) => {
-          res.status(200).json(subredditInfo);
+          res.status(201).json(subredditInfo);
         })
         .catch((error) => {
           res.status(error.status).json({ error: error.error });
         });
     },
 
-    // TODO: CHANGE IMPLEMENTATION TO ACCEPT BOTH ID AND SUBREDDIT NAME
+    // TO DO: ADD FEATURE TO BE ABLE TO UPDATE SUBREDDIT ICON
     putSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
-        const description = req.body.description;
-        const subredditName = req.params.subreddit;
+        const { subreddit, description } = req.body;
+        const subredditId = req.params.subreddit;
         if (description) {
+          // BROKEN ;;
+          // CAN UPDATE DESCRIPTION BUT SERVER RESPONSES WITH ERROR 500 (SECOND ONE)
           subredditsRepository
-            .checkIfSubredditExists(subredditName)
+            .checkIfSubredditExists(subreddit)
             .then((data) => {
               if (data[0][0][0]["COUNT(name)"] === 0) {
                 reject({
@@ -158,21 +176,27 @@ module.exports = (subredditsRepository) => {
                 });
               } else {
                 subredditsRepository
-                  .updateSubredditDescription(subredditName, description)
+                  .updateSubredditDescription(subredditId, description)
                   .then(() => {
                     resolve({
-                      subreddit: subredditName,
+                      subreddit: subredditId,
                       description: description,
                     });
                   })
                   .catch(() => {
-                    reject(
-                      res.status(404).json({ message: "Subreddit not found." })
-                    );
+                    reject({
+                      status: 500,
+                      error: { message: "Internal server error. (SQL)" },
+                    });
                   });
               }
             })
-            .catch();
+            .catch(
+              reject({
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
+              })
+            );
         } else {
           reject({
             status: 404,

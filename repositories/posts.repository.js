@@ -45,8 +45,8 @@ module.exports = (knex) => {
     updatePostBody: (postId, body) => {
       return knex.raw("CALL UpdatePostBody(?, ?)", [postId, body]);
     },
-    checkIfSubredditExists: (name, id) => {
-      return knex.raw("CALL CheckIfSubredditExists(?, ?)", [name, id]);
+    checkIfSubredditExists: (name) => {
+      return knex.raw("CALL CheckIfSubredditExists(?, ?)", [name]);
     },
     checkIfIDExists: (id) => {
       return knex.raw("CALL CheckIfIDExists(?)", [id]);

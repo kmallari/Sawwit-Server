@@ -4,6 +4,7 @@
 
 const nanoid = require("nanoid");
 const bcrypt = require("bcryptjs");
+const { json } = require("express/lib/response");
 const saltRounds = 5;
 
 const isValidUsername = (username) => {
@@ -25,23 +26,44 @@ const isValidEmail = (email) => {
   return false;
 };
 
+// function for  checking if password is valid using regex
+const isValidPassword = (password) => {
+  if (/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,15}$/.test(password)) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
 module.exports = (usersRepository) => {
   const userController = {
     getAllUsers: (req, res) => {
-      usersRepository
-        .getAllUsers()
+      new Promise((resolve, reject) => {
+        usersRepository.getAllUsers().then((data) => {
+          if (data[0][0].length == 0) {
+            reject({
+              status: 404,
+              error: { message: "No users found" },
+            });
+          } else {
+            resolve(data[0][0]);
+          }
+        });
+      })
         .then((data) => {
-          res.status(200).json(data[0][0]);
+          res.status(200).json(data);
         })
-        .catch((error) => res.status(400).json(error));
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
     },
 
     registerUser: (req, res) => {
-      // NOT SURE ABOUT THIS STRUCTURE !!
       new Promise((resolve, reject) => {
         const { email, username, password } = req.body;
         const id = nanoid.nanoid();
 
+        // sync notes:
         // if walang way to wait for db operation, minsan kahit ibalik na lang
         // yung pinass na parameters
 
@@ -52,7 +74,6 @@ module.exports = (usersRepository) => {
               error: { message: "Username is taken." },
             });
           } else {
-            // if username is not taken, check email
             usersRepository.checkIfEmailExists(email).then((data) => {
               if (data[0][0][0]["COUNT(email)"] > 0) {
                 reject({
@@ -60,10 +81,12 @@ module.exports = (usersRepository) => {
                   error: { message: "Email is taken." },
                 });
               } else {
-                // if both email and username are not taken,
-                // check for validity of information.
                 if (email && username && password) {
-                  if (isValidEmail(email) && isValidUsername(username)) {
+                  if (
+                    isValidEmail(email) &&
+                    isValidUsername(username) &&
+                    isValidPassword(password)
+                  ) {
                     bcrypt.genSalt(saltRounds, (err, salt) => {
                       bcrypt.hash(password, salt, (err, hash) => {
                         usersRepository
@@ -78,7 +101,9 @@ module.exports = (usersRepository) => {
                           .then(() => {
                             usersRepository
                               .getUserInformation(id)
-                              .then(resolve);
+                              .then((data) => {
+                                resolve(data[0][0][0]);
+                              });
                           })
                           .catch((error) => {
                             reject(error);
@@ -88,7 +113,9 @@ module.exports = (usersRepository) => {
                   } else {
                     reject({
                       status: 400,
-                      error: { message: "Invalid email or username format." },
+                      error: {
+                        message: "Invalid email, username, or password format.",
+                      },
                     });
                   }
                 } else {
@@ -103,8 +130,7 @@ module.exports = (usersRepository) => {
         });
       })
         .then((data) => {
-          // FIX RETURNED JSON DATA !!
-          res.status(200).json(data[0][0][0]);
+          res.status(201).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);
@@ -120,8 +146,8 @@ module.exports = (usersRepository) => {
         if (isValidEmail(loginInfo)) {
           // login info entered is email
           usersRepository.loginUser("", loginInfo).then((data) => {
+            // SYNC NOTES:
             // if user is not in database
-
             // bonus na lang
             // can make into helper function
             // validate login user helper (pass in data)
@@ -205,13 +231,13 @@ module.exports = (usersRepository) => {
             .catch(() => {
               reject({
                 status: 500,
-                error: { message: "Internal server error." },
+                error: { message: "Internal server error. (SQL)" },
               });
             });
         } else {
           reject({
             status: 404,
-            error: { message: "User not found." },
+            error: { message: "ID parameter not found." },
           });
         }
       })
@@ -225,6 +251,7 @@ module.exports = (usersRepository) => {
 
     patchUser: (req, res) => {
       new Promise((resolve, reject) => {
+        // ALL COMMENTS ARE ARE NOTES FROM SYNC
         // use promise all
         // ipromise lahat ng repo updates, if may nag-error, masasalo lahat
 
@@ -246,8 +273,6 @@ module.exports = (usersRepository) => {
                 if (isValidEmail(email)) {
                   usersRepository.checkIfEmailExists(email).then((data) => {
                     if (data[0][0][0]["COUNT(email)"] > 0) {
-                      console.log(data[0][0][0]["COUNT(email)"]);
-                      // if email entered is already in the database.
                       reject({
                         status: 409,
                         error: { message: "Email is already in use." },
@@ -303,7 +328,6 @@ module.exports = (usersRepository) => {
             }
 
             Promise.all([
-              // change to validations instead of promises
               emailValidation,
               usernameValidation,
               profilePictureValidation,
@@ -319,7 +343,6 @@ module.exports = (usersRepository) => {
 
                 let changeEmail;
                 if (validations[0]) {
-                  console.log("chnge email run?");
                   changeEmail = new Promise((resolve, reject) => {
                     usersRepository
                       .updateEmail(id, email)
@@ -340,7 +363,6 @@ module.exports = (usersRepository) => {
 
                 let changeUsername;
                 if (validations[1]) {
-                  console.log("change username run?");
                   changeUsername = new Promise((resolve, reject) => {
                     usersRepository
                       .updateUsername(id, username)
@@ -411,8 +433,6 @@ module.exports = (usersRepository) => {
                   changeProfilePicture,
                   changePassword,
                 ]).then((updates) => {
-                  // if all values in updates are undefined, reject
-                  console.log("second promis eall run?");
                   if (
                     updates[0] === undefined &&
                     updates[1] === undefined &&
@@ -466,9 +486,20 @@ module.exports = (usersRepository) => {
         const id = req.params.userId;
         usersRepository.checkIfIDExists(id).then((data) => {
           if (data[0][0][0]["COUNT(id)"] > 0) {
-            usersRepository.deleteUser(id).then(resolve());
+            usersRepository
+              .deleteUser(id)
+              .then(resolve())
+              .catch(() => {
+                reject({
+                  status: 500,
+                  error: {
+                    message: "An error occurred while deleting the user.",
+                  },
+                });
+              });
           } else {
             reject({
+              status: 404,
               error: {
                 message: "User not found.",
               },

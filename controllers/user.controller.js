@@ -1,0 +1,491 @@
+// we don't see numbered pagination; every time we scroll then we load another page; think about not returning all the posts in a subreddit, for example
+// add error mappings for errors
+// move patch requests to body
+
+const nanoid = require("nanoid");
+const bcrypt = require("bcryptjs");
+const saltRounds = 5;
+
+const isValidUsername = (username) => {
+  // username is 4-20 characters long
+  // no _ at the beginning and end
+  // no __* inside
+  // only allows alphanumeric characters and _
+
+  if (/^(?=[a-zA-Z0-9_]{4,20}$)(?!.*[_.]{2})[^_.].*[^_.]$/.test(username)) {
+    return true;
+  }
+  return false;
+};
+
+const isValidEmail = (email) => {
+  if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+    return true;
+  }
+  return false;
+};
+
+module.exports = (usersRepository) => {
+  const userController = {
+    getAllUsers: (req, res) => {
+      usersRepository
+        .getAllUsers()
+        .then((data) => {
+          res.status(200).json(data[0][0]);
+        })
+        .catch((error) => res.status(400).json(error));
+    },
+
+    registerUser: (req, res) => {
+      // NOT SURE ABOUT THIS STRUCTURE !!
+      new Promise((resolve, reject) => {
+        const { email, username, password } = req.body;
+        const id = nanoid.nanoid();
+
+        // if walang way to wait for db operation, minsan kahit ibalik na lang
+        // yung pinass na parameters
+
+        usersRepository.checkIfUserExists(username).then((data) => {
+          if (data[0][0][0]["COUNT(username)"] > 0) {
+            reject({
+              status: 409,
+              error: { message: "Username is taken." },
+            });
+          } else {
+            // if username is not taken, check email
+            usersRepository.checkIfEmailExists(email).then((data) => {
+              if (data[0][0][0]["COUNT(email)"] > 0) {
+                reject({
+                  status: 409,
+                  error: { message: "Email is taken." },
+                });
+              } else {
+                // if both email and username are not taken,
+                // check for validity of information.
+                if (email && username && password) {
+                  if (isValidEmail(email) && isValidUsername(username)) {
+                    bcrypt.genSalt(saltRounds, (err, salt) => {
+                      bcrypt.hash(password, salt, (err, hash) => {
+                        usersRepository
+                          .registerUser(
+                            id,
+                            username,
+                            email,
+                            hash,
+                            "https://i.imgur.com/lccuiDX.png",
+                            Date.now()
+                          )
+                          .then(() => {
+                            usersRepository
+                              .getUserInformation(id)
+                              .then(resolve);
+                          })
+                          .catch((error) => {
+                            reject(error);
+                          });
+                      });
+                    });
+                  } else {
+                    reject({
+                      status: 400,
+                      error: { message: "Invalid email or username format." },
+                    });
+                  }
+                } else {
+                  reject({
+                    status: 400,
+                    error: { message: "Missing email, username or password." },
+                  });
+                }
+              }
+            });
+          }
+        });
+      })
+        .then((data) => {
+          // FIX RETURNED JSON DATA !!
+          res.status(200).json(data[0][0][0]);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    loginUser: (req, res) => {
+      // NOT SURE ABOUT THIS STRUCTURE;
+      // A LOT OF REPEATED CODE
+      new Promise((resolve, reject) => {
+        const { loginInfo, password } = req.body;
+        let user;
+        if (isValidEmail(loginInfo)) {
+          // login info entered is email
+          usersRepository.loginUser("", loginInfo).then((data) => {
+            // if user is not in database
+
+            // bonus na lang
+            // can make into helper function
+            // validate login user helper (pass in data)
+            // pwede ireturn yung actual status tapos gamitin sa promise chain
+            if (data[0][0].length == 0) {
+              reject({
+                status: 404,
+                error: { message: "User not found." },
+              });
+            }
+            user = data[0][0][0];
+            bcrypt.compare(password, user.PASSWORD, (err, res) => {
+              if (res) {
+                resolve({ message: "Successfully logged in." });
+              } else {
+                reject({
+                  status: 401,
+                  error: { message: "Email and password do not match." },
+                });
+              }
+            });
+          });
+        } else {
+          // login info entered is username
+          usersRepository.loginUser(loginInfo, "").then((data) => {
+            // if user is not in database
+            if (data[0][0].length == 0) {
+              reject({
+                status: 404,
+                error: { message: "User not found." },
+              });
+            }
+            user = data[0][0][0];
+            bcrypt.compare(password, user.PASSWORD, (err, res) => {
+              if (res) {
+                resolve({ message: "Successfully logged in." });
+              } else {
+                reject({
+                  status: 401,
+                  error: { message: "Username and password do not match." },
+                });
+              }
+            });
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    getUser: (req, res) => {
+      new Promise((resolve, reject) => {
+        const id = req.params.userId;
+        if (id) {
+          usersRepository
+            .checkIfIDExists(id)
+            .then((data) => {
+              if (data[0][0][0]["COUNT(id)"] > 0) {
+                usersRepository
+                  .getUserInformation(id)
+                  .then((user) => {
+                    resolve(user[0][0][0]);
+                  })
+                  .catch(() => {
+                    reject({
+                      status: 404,
+                      error: { message: "User information not found." },
+                    });
+                  });
+              } else {
+                reject({
+                  status: 404,
+                  error: { message: "User not found." },
+                });
+              }
+            })
+            .catch(() => {
+              reject({
+                status: 500,
+                error: { message: "Internal server error." },
+              });
+            });
+        } else {
+          reject({
+            status: 404,
+            error: { message: "User not found." },
+          });
+        }
+      })
+        .then((user) => {
+          res.status(200).json(user);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    patchUser: (req, res) => {
+      new Promise((resolve, reject) => {
+        // use promise all
+        // ipromise lahat ng repo updates, if may nag-error, masasalo lahat
+
+        // ichain na lang yung promises?
+
+        // place all validation in promises.all
+        // if after matapos lahat ng validations, pwede na i-update
+        // promise all muna lahat ng validations; if walang rejection, pwede na gawin yung mga updates
+
+        const { email, username, password, profilePicture } = req.body; // depende sa existing fields yung ipapass sa promise.all
+        const id = req.params.userId;
+        usersRepository.checkIfIDExists(id).then((data) => {
+          if (data[0][0][0]["COUNT(id)"] > 0) {
+            // there is a user that exists with the id
+            // unahin mga validations; first promise all, puro validations
+            let emailValidation;
+            if (email) {
+              emailValidation = new Promise((resolve, reject) => {
+                if (isValidEmail(email)) {
+                  usersRepository.checkIfEmailExists(email).then((data) => {
+                    if (data[0][0][0]["COUNT(email)"] > 0) {
+                      console.log(data[0][0][0]["COUNT(email)"]);
+                      // if email entered is already in the database.
+                      reject({
+                        status: 409,
+                        error: { message: "Email is already in use." },
+                      });
+                    } else {
+                      resolve(true);
+                    }
+                  });
+                } else {
+                  reject({
+                    status: 403,
+                    error: { message: "Email format is invalid." },
+                  });
+                }
+              });
+            }
+
+            let usernameValidation;
+            if (username) {
+              usernameValidation = new Promise((resolve, reject) => {
+                if (isValidUsername) {
+                  usersRepository.checkIfUserExists(username).then((data) => {
+                    if (data[0][0][0]["COUNT(username)"] > 0) {
+                      reject({
+                        status: 409,
+                        error: { message: "Username is already in use." },
+                      });
+                    } else {
+                      resolve(true);
+                    }
+                  });
+                } else {
+                  reject({
+                    status: 403,
+                    error: { message: "Username format is invalid." },
+                  });
+                }
+              });
+            }
+
+            let profilePictureValidation;
+            if (profilePicture) {
+              profilePictureValidation = new Promise((resolve, reject) => {
+                resolve(true);
+              });
+            }
+
+            let passwordValidation;
+            if (password) {
+              passwordValidation = new Promise((resolve, reject) => {
+                resolve(true);
+              });
+            }
+
+            Promise.all([
+              // change to validations instead of promises
+              emailValidation,
+              usernameValidation,
+              profilePictureValidation,
+              passwordValidation,
+            ])
+              .then((validations) => {
+                // validations[0] => emailPromise
+                // validations[1] => usernamePromise
+                // validations[2] => profilePicturePromise
+                // validations[3] => passwordPromise
+
+                console.log(validations);
+
+                let changeEmail;
+                if (validations[0]) {
+                  console.log("chnge email run?");
+                  changeEmail = new Promise((resolve, reject) => {
+                    usersRepository
+                      .updateEmail(id, email)
+                      .then(() => {
+                        resolve("email");
+                      })
+                      .catch(() => {
+                        reject({
+                          status: 500,
+                          error: {
+                            message:
+                              "An error occurred while updating the email.",
+                          },
+                        });
+                      });
+                  });
+                }
+
+                let changeUsername;
+                if (validations[1]) {
+                  console.log("change username run?");
+                  changeUsername = new Promise((resolve, reject) => {
+                    usersRepository
+                      .updateUsername(id, username)
+                      .then(() => {
+                        resolve("username");
+                      })
+                      .catch(() => {
+                        reject({
+                          status: 500,
+                          error: {
+                            message:
+                              "An error occurred while updating the username.",
+                          },
+                        });
+                      });
+                  });
+                }
+
+                let changeProfilePicture;
+                if (validations[2]) {
+                  console.log("change pp run?");
+                  changeProfilePicture = new Promise((resolve, reject) => {
+                    usersRepository
+                      .updateProfilePicture(id, profilePicture)
+                      .then(() => {
+                        resolve("profile picture");
+                      })
+                      .catch(() => {
+                        reject({
+                          status: 500,
+                          error: {
+                            message:
+                              "An error occurred while updating the profilePicture.",
+                          },
+                        });
+                      });
+                  });
+                }
+
+                let changePassword;
+                if (validations[3]) {
+                  console.log("change pass run?");
+                  changePassword = new Promise((resolve, reject) => {
+                    bcrypt.genSalt(saltRounds, (err, salt) => {
+                      bcrypt.hash(password, salt, (err, hash) => {
+                        usersRepository
+                          .updatePassword(id, hash)
+                          .then(() => {
+                            resolve("password");
+                          })
+                          .catch(() => {
+                            reject({
+                              status: 500,
+                              error: {
+                                message:
+                                  "An error occurred while updating the password.",
+                              },
+                            });
+                          });
+                      });
+                    });
+                  });
+                }
+
+                Promise.all([
+                  changeEmail,
+                  changeUsername,
+                  changeProfilePicture,
+                  changePassword,
+                ]).then((updates) => {
+                  // if all values in updates are undefined, reject
+                  console.log("second promis eall run?");
+                  if (
+                    updates[0] === undefined &&
+                    updates[1] === undefined &&
+                    updates[2] === undefined &&
+                    updates[3] === undefined
+                  ) {
+                    reject({
+                      status: 400,
+                      error: { message: "No updates were made." },
+                    });
+                  } else {
+                    resolve(updates);
+                  }
+                });
+              })
+              .catch((error) => {
+                reject(error);
+              });
+          } else {
+            reject({
+              status: 404,
+              error: {
+                message: "User not found.",
+              },
+            });
+          }
+        });
+      })
+        .then((updated) => {
+          let updatedFields = "";
+          for (let i = 0; i < updated.length; i++) {
+            updated[i] !== undefined
+              ? (updatedFields += updated[i] + ", ")
+              : null;
+          }
+
+          // remove last two characters in string
+          updatedFields = updatedFields.slice(0, -2);
+
+          res.status(200).json({
+            message: `Successfully updated the user's ${updatedFields}.`,
+          });
+        })
+        .catch((error) => {
+          res.status(error.status).json({ error: error.error });
+        });
+    },
+
+    deleteUser: (req, res) => {
+      new Promise((resolve, reject) => {
+        const id = req.params.userId;
+        usersRepository.checkIfIDExists(id).then((data) => {
+          if (data[0][0][0]["COUNT(id)"] > 0) {
+            usersRepository.deleteUser(id).then(resolve());
+          } else {
+            reject({
+              error: {
+                message: "User not found.",
+              },
+            });
+          }
+        });
+      })
+        .then((user) => {
+          res.status(200).json({
+            status: "Successfully deleted user.",
+            data: user,
+          });
+        })
+        .catch((error) => {
+          res.status(404).json(error.error);
+        });
+    },
+  };
+  return userController;
+};

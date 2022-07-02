@@ -1,7 +1,8 @@
 -- !! VOTES ARE NOT IMPLEMENTED INTO THE API YET !!
+-- TO DO: ADD SUBSTRACTING IN DELETES
 -- CREATING THE TABLES
 CREATE TABLE `users` (
-  `ID` VARCHAR(21) NOT NULL PRIMARY KEY,
+  `id` VARCHAR(21) NOT NULL PRIMARY KEY,
   `username` VARCHAR(20) NOT NULL,
   `email` VARCHAR(320) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
@@ -10,12 +11,11 @@ CREATE TABLE `users` (
 );
 
 CREATE TABLE `posts` (
-  `ID` VARCHAR(21) NOT NULL PRIMARY KEY,
+  `id` VARCHAR(21) NOT NULL PRIMARY KEY,
   `userId` VARCHAR(21) NOT NULL,
   `username` VARCHAR(20) NOT NULL,
   `title` VARCHAR(300) NOT NULL,
   `body` VARCHAR(40000) NOT NULL,
-  `subredditId` VARCHAR(21) NOT NULL,
   `subreddit` VARCHAR(20) NOT NULL,
   `commentsCount` INT NOT NULL,
   `upvotes` INT NOT NULL,
@@ -24,25 +24,28 @@ CREATE TABLE `posts` (
 );
 
 CREATE TABLE `comments` (
-  `ID` VARCHAR(21) NOT NULL PRIMARY KEY,
+  `id` VARCHAR(21) NOT NULL PRIMARY KEY,
   `userId` VARCHAR(21) NOT NULL,
   `username` VARCHAR(20) NOT NULL,
   `postId` VARCHAR(21) NOT NULL,
   `parentId` VARCHAR(21) NOT NULL,
   `body` VARCHAR(10000) NOT NULL,
   `createdAt` BIGINT NOT NULL,
+  `level` INT NOT NULL,
+  `childrenCount` INT NOT NULL,
   `upvotes` INT NOT NULL,
   `downvotes` INT NOT NULL
 );
 
 CREATE TABLE `subreddits` (
-  `ID` VARCHAR(21) NOT NULL PRIMARY KEY,
-  `name` VARCHAR(20) NOT NULL,
+  `name` VARCHAR(20) NOT NULL PRIMARY KEY,
   `description` VARCHAR(255) NOT NULL,
   `icon` VARCHAR(255) NOT NULL,
+  `postCount` INT NOT NULL,
   `createdAt` BIGINT NOT NULL
 );
 
+-- NOT YET IMPLEMENTED SUBSCRIPTIONS AND VOTES
 CREATE TABLE `subscriptions` (
   `userId` VARCHAR(21) NOT NULL,
   `subredditId` VARCHAR(21) NOT NULL,
@@ -83,7 +86,7 @@ INSERT INTO
     id,
     username,
     email,
-    PASSWORD,
+    password,
     profilePicture,
     createdAt
   )
@@ -134,9 +137,12 @@ CREATE PROCEDURE LoginUser(
   p_username VARCHAR(20)
 ) BEGIN
 SELECT
+  id,
   username,
   email,
-  PASSWORD
+  profilePicture,
+  password,
+  createdAt
 FROM
   users
 WHERE
@@ -193,7 +199,7 @@ CREATE PROCEDURE UpdatePassword(p_id VARCHAR(21), p_password VARCHAR(255)) BEGIN
 UPDATE
   users
 SET
-  PASSWORD = p_password
+  password = p_password
 WHERE
   id = p_id;
 
@@ -218,13 +224,13 @@ ORDER BY
 
 END;
 
-CREATE PROCEDURE GetPostsFromSubreddit(p_id VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetPostsFromSubreddit(p_name VARCHAR(20)) BEGIN
 SELECT
   *
 FROM
   posts
 WHERE
-  id = p_id
+  subreddit = p_name
 ORDER BY
   createdAt DESC;
 
@@ -246,18 +252,16 @@ CREATE PROCEDURE CreatePost(
   IN p_username VARCHAR(20),
   IN p_title VARCHAR(300),
   IN p_body VARCHAR(40000),
-  IN p_subredditId VARCHAR(21),
   IN p_subreddit VARCHAR(20),
   IN p_createdAt BIGINT
 ) BEGIN
 INSERT INTO
   posts (
-    ID,
+    id,
     userId,
     username,
     title,
     body,
-    subredditId,
     subreddit,
     createdAt,
     commentsCount,
@@ -271,13 +275,19 @@ VALUES
     p_username,
     p_title,
     p_body,
-    p_subredditId,
     p_subreddit,
     p_createdAt,
     0,
     0,
     0
   );
+
+UPDATE
+  subreddits
+SET
+  postCount = postCount + 1
+WHERE
+  name = p_subreddit;
 
 END;
 
@@ -340,13 +350,13 @@ FROM
 
 END;
 
-CREATE PROCEDURE GetOneSubreddit (p_id VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetSubredditInfo (p_name VARCHAR(21)) BEGIN
 SELECT
   *
 FROM
   subreddits
 WHERE
-  id = p_id;
+  name = p_name;
 
 END;
 
@@ -361,7 +371,6 @@ WHERE
 END;
 
 CREATE PROCEDURE CreateSubreddit (
-  p_id VARCHAR(21),
   p_name VARCHAR(20),
   p_description VARCHAR(255),
   p_icon VARCHAR(255),
@@ -369,25 +378,25 @@ CREATE PROCEDURE CreateSubreddit (
 ) BEGIN
 INSERT INTO
   subreddits (
-    id,
     name,
     description,
     icon,
-    createdAt
+    createdAt,
+    postCount
   )
 VALUES
   (
-    p_id,
     p_name,
     p_description,
     p_icon,
-    p_createdAt
+    p_createdAt,
+    0
   );
 
 END;
 
 CREATE PROCEDURE UpdateSubredditDescription (
-  p_id VARCHAR(21),
+  p_name VARCHAR(21),
   p_description VARCHAR(255)
 ) BEGIN
 UPDATE
@@ -395,7 +404,17 @@ UPDATE
 SET
   description = p_description
 WHERE
-  ID = p_id;
+  name = p_name;
+
+END;
+
+CREATE PROCEDURE SearchSubreddit (p_name VARCHAR(20)) BEGIN
+SELECT
+  *
+FROM
+  subreddits
+WHERE
+  name LIKE p_name;
 
 END;
 
@@ -417,7 +436,8 @@ CREATE PROCEDURE CreateComment(
   IN p_postid VARCHAR(21),
   IN p_parentid VARCHAR(21),
   IN p_body VARCHAR(10000),
-  IN p_createdAt BIGINT
+  IN p_createdAt BIGINT,
+  IN p_parentLevel INT
 ) BEGIN
 INSERT INTO
   comments (
@@ -428,6 +448,8 @@ INSERT INTO
     parentId,
     body,
     createdAt,
+    LEVEL,
+    childrenCount,
     upvotes,
     downvotes
   )
@@ -440,6 +462,8 @@ VALUES
     p_parentid,
     p_body,
     p_createdAt,
+    p_parentLevel + 1,
+    0,
     0,
     0
   );
@@ -450,6 +474,13 @@ SET
   commentsCount = commentsCount + 1
 WHERE
   id = p_postid;
+
+UPDATE
+  comments
+SET
+  childrenCount = childrenCount + 1
+WHERE
+  id = p_parentid;
 
 END;
 
@@ -480,6 +511,18 @@ FROM
   comments
 WHERE
   id = p_id;
+
+END;
+
+CREATE PROCEDURE GetNextComments (p_parentid VARCHAR(21)) BEGIN
+SELECT
+  *
+FROM
+  comments
+WHERE
+  parentId = p_parentid
+ORDER BY
+  createdAt DESC;
 
 END;
 
@@ -519,6 +562,7 @@ ORDER BY
 
 END;
 
+-- MAKE SURE TO CHANGE SUBREDDIT ID
 CREATE PROCEDURE Subscribe (
   p_userId VARCHAR(21),
   p_subredditId VARCHAR(21),

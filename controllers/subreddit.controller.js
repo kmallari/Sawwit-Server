@@ -1,5 +1,3 @@
-const nanoid = require("nanoid");
-
 const isValidSubreddit = (subreddit) => {
   // subreddit is 4-20 characters long
   // no _ at the beginning and end
@@ -47,12 +45,12 @@ module.exports = (subredditsRepository) => {
         });
     },
 
-    getOneSubreddit: (req, res) => {
+    getSubredditInfo: (req, res) => {
       new Promise((resolve, reject) => {
-        const subredditId = req.params.subredditId;
-        if (subredditId) {
+        const subredditName = req.params.subreddit;
+        if (subredditName) {
           subredditsRepository
-            .getOneSubreddit(subredditId)
+            .getSubredditInfo(subredditName)
             .then((data) => {
               if (data[0][0].length > 0) {
                 resolve(data[0][0][0]);
@@ -88,7 +86,6 @@ module.exports = (subredditsRepository) => {
 
     postSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
-        const id = nanoid.nanoid();
         const subredditName = req.body.subredditName;
         const description = req.body.description;
 
@@ -101,7 +98,6 @@ module.exports = (subredditsRepository) => {
                   if (data[0][0][0]["COUNT(name)"] === 0) {
                     subredditsRepository
                       .createSubreddit(
-                        id,
                         subredditName,
                         description,
                         "https://i.imgur.com/8OLatuA.png",
@@ -109,17 +105,17 @@ module.exports = (subredditsRepository) => {
                       )
                       .then(() => {
                         resolve({
-                          id: id,
                           subreddit: subredditName,
                           icon: "https://i.imgur.com/8OLatuA.png",
                           description: description,
                         });
                       })
-                      .catch(() => {
+                      .catch((err) => {
+                        console.error(err);
                         reject(
                           res
                             .status(500)
-                            .json({ error: "Internal server error. (SQL)" })
+                            .json({ error: "Internal server error. (SQL1)" })
                         );
                       });
                   } else {
@@ -164,7 +160,7 @@ module.exports = (subredditsRepository) => {
         const { subreddit, description } = req.body;
         const subredditId = req.params.subreddit;
         if (description) {
-          // BROKEN ;;
+          // BROKEN
           // CAN UPDATE DESCRIPTION BUT SERVER RESPONSES WITH ERROR 500 (SECOND ONE)
           subredditsRepository
             .checkIfSubredditExists(subreddit)
@@ -206,6 +202,44 @@ module.exports = (subredditsRepository) => {
       })
         .then((subredditInfo) => {
           res.status(200).json(subredditInfo);
+        })
+        .catch((error) => {
+          res.status(error.status).json({ error: error.error });
+        });
+    },
+
+    searchSubreddit: (req, res) => {
+      new Promise((resolve, reject) => {
+        const searchTerm = req.query.searchTerm + "%";
+        console.log(searchTerm);
+        if (searchTerm) {
+          subredditsRepository
+            .searchSubreddit(searchTerm)
+            .then((data) => {
+              if (data[0][0].length > 0) {
+                resolve(data[0][0]);
+              } else {
+                reject({
+                  status: 404,
+                  error: { message: "No subreddits found." },
+                });
+              }
+            })
+            .catch(() => {
+              reject({
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
+              });
+            });
+        } else {
+          reject({
+            status: 404,
+            error: { message: "Missing search term." },
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json({ error: error.error });

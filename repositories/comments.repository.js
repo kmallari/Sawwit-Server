@@ -3,8 +3,17 @@ module.exports = (knex) => {
     getAllComments: () => {
       return knex.raw("CALL GetAllComments()");
     },
-    createComment: (id, userId, postId, parentId, body, createdAt) => {
-      return knex.raw("CALL CreateComment(?, ?, ?, ?, ?, ?, ?)", [
+    createComment: (
+      id,
+      userId,
+      username,
+      postId,
+      parentId,
+      body,
+      createdAt,
+      parentLevel
+    ) => {
+      return knex.raw("CALL CreateComment(?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
@@ -12,10 +21,14 @@ module.exports = (knex) => {
         parentId,
         body,
         createdAt,
+        parentLevel,
       ]);
     },
     getPostComments: (postId) => {
       return knex.raw("CALL GetPostComments(?)", [postId]);
+    },
+    getNextComments: (parentId) => {
+      return knex.raw("CALL GetNextComments(?)", [parentId]);
     },
     deleteComment: (id) => {
       return knex.raw("CALL DeleteComment(?)", [id]);
@@ -35,6 +48,7 @@ module.exports = (knex) => {
     checkIfIDExists: (id, username) => {
       return knex.raw("CALL CheckIfIDExists(?)", [id]);
     },
+  
   };
   return commentsRepository;
 };

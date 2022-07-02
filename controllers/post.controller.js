@@ -42,9 +42,11 @@ module.exports = (postsRepository) => {
     getPostsFromSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
         const subredditName = req.params.subreddit;
+
         postsRepository
           .getAllPostsFromSubreddit(subredditName)
           .then((data) => {
+            console.log(data[0][0]);
             if (data[0][0].length > 0) {
               resolve(data[0][0]);
             } else {
@@ -162,11 +164,10 @@ module.exports = (postsRepository) => {
 
     postPost: (req, res) => {
       new Promise((resolve, reject) => {
-        const { title, body, userId, username, subredditId, subreddit } =
-          req.body;
+        const { title, body, userId, username, subreddit } = req.body;
 
         // no need to include body in if statement since body is optional
-        if (title && userId && username && subreddit && subredditId) {
+        if (title && userId && username && subreddit) {
           if (isValidTitle(title)) {
             if (isValidPostBody(body)) {
               postsRepository
@@ -195,7 +196,6 @@ module.exports = (postsRepository) => {
                               username,
                               title,
                               body,
-                              subredditId,
                               subreddit,
                               Date.now()
                             )
@@ -206,7 +206,6 @@ module.exports = (postsRepository) => {
                                 username: username,
                                 title: title,
                                 body: body,
-                                subredditId: subredditId,
                                 subreddit: subreddit,
                               });
                             })
@@ -215,7 +214,7 @@ module.exports = (postsRepository) => {
                               reject({
                                 status: 500,
                                 error: {
-                                  message: "Internal server error. (SQL)",
+                                  message: "Internal server error. (SQL1)",
                                 },
                               });
                             });
@@ -224,7 +223,7 @@ module.exports = (postsRepository) => {
                       .catch(() => {
                         reject({
                           status: 500,
-                          error: { message: "Internal server error. (SQL)" },
+                          error: { message: "Internal server error. (SQL2)" },
                         });
                       });
                   }
@@ -232,7 +231,7 @@ module.exports = (postsRepository) => {
                 .catch(() => {
                   reject({
                     status: 500,
-                    error: { message: "Internal server error. (SQL)" },
+                    error: { message: "Internal server error. (SQL3)" },
                   });
                 });
             } else {

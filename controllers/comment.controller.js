@@ -83,9 +83,11 @@ module.exports = (commentsRepository) => {
       new Promise((resolve, reject) => {
         const postId = req.params.postId;
         const { userId, username, comment, parentId } = req.body;
+        const parentLevel = parseInt(req.query.parentLevel);
+        console.log("PARENT", typeof parentLevel);
         const id = nanoid.nanoid();
 
-        if (userId && comment && parentId) {
+        if (userId && username && comment && parentId) {
           commentsRepository
             .checkIfPostExists(postId)
             .then((data) => {
@@ -94,6 +96,7 @@ module.exports = (commentsRepository) => {
                   .checkIfIDExists(userId)
                   .then((data) => {
                     if (data[0][0][0]["COUNT(id)"] > 0) {
+                      console.log(userId, username, comment, parentId);
                       commentsRepository
                         .createComment(
                           id,
@@ -102,7 +105,8 @@ module.exports = (commentsRepository) => {
                           postId,
                           parentId,
                           comment,
-                          Date.now()
+                          Date.now(),
+                          parentLevel
                         )
                         .then(() => {
                           resolve({
@@ -113,12 +117,14 @@ module.exports = (commentsRepository) => {
                             parentId: parentId,
                             body: comment,
                             createdAt: Date.now(),
+                            parentLevel,
                           });
                         })
-                        .catch(() => {
+                        .catch((err) => {
+                          console.error(err);
                           reject({
                             status: 500,
-                            error: { message: "Internal server error. (SQL)" },
+                            error: { message: "Internal server error. (SQL1)" },
                           });
                         });
                     } else {
@@ -128,10 +134,11 @@ module.exports = (commentsRepository) => {
                       });
                     }
                   })
-                  .catch(() => {
+                  .catch((error) => {
+                    console.error(error);
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL)" },
+                      error: { message: "Internal server error. (SQL2)" },
                     });
                   });
               } else {
@@ -144,7 +151,7 @@ module.exports = (commentsRepository) => {
             .catch(() =>
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: { message: "Internal server error. (SQL3)" },
               })
             );
         } else {
@@ -191,6 +198,39 @@ module.exports = (commentsRepository) => {
               error: { message: "Internal server error. (SQL)" },
             });
           });
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    getNextComments: (req, res) => {
+      new Promise((resolve, reject) => {
+        const { parentId } = req.query;
+        console.log("HELLO", parentId);
+
+        if (parentId) {
+          commentsRepository
+            .getNextComments(parentId)
+            .then((data) => {
+              resolve(data[0][0]);
+            })
+            .catch((err) => {
+              console.error(err);
+              reject({
+                status: 500,
+                error: { message: "Internal server error. (SQL)" },
+              });
+            });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing parameters." },
+          });
+        }
       })
         .then((data) => {
           res.status(200).json(data);

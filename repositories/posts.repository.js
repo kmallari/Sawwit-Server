@@ -12,17 +12,16 @@ module.exports = (knex) => {
       username,
       title,
       body,
-      subredditId,
       subredditName,
       createdAt
     ) => {
-      return knex.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?, ?)", [
+      return knex.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
         title,
         body,
-        subredditId,
+
         subredditName,
         createdAt,
       ]);
@@ -46,11 +45,12 @@ module.exports = (knex) => {
       return knex.raw("CALL UpdatePostBody(?, ?)", [postId, body]);
     },
     checkIfSubredditExists: (name) => {
-      return knex.raw("CALL CheckIfSubredditExists(?, ?)", [name]);
+      return knex.raw("CALL CheckIfSubredditExists(?)", [name]);
     },
     checkIfIDExists: (id) => {
       return knex.raw("CALL CheckIfIDExists(?)", [id]);
     },
+    
   };
   return postsRepository;
 };

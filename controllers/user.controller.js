@@ -4,7 +4,7 @@
 
 const nanoid = require("nanoid");
 const bcrypt = require("bcryptjs");
-const { json } = require("express/lib/response");
+const jwt = require("jsonwebtoken");
 const saltRounds = 5;
 
 const isValidUsername = (username) => {
@@ -28,7 +28,9 @@ const isValidEmail = (email) => {
 
 // function for  checking if password is valid using regex
 const isValidPassword = (password) => {
-  if (/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,15}$/.test(password)) {
+  if (
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,15}$/.test(password)
+  ) {
     return true;
   } else {
     return false;
@@ -69,6 +71,7 @@ module.exports = (usersRepository) => {
 
         usersRepository.checkIfUserExists(username).then((data) => {
           if (data[0][0][0]["COUNT(username)"] > 0) {
+            // baka pwedeng gawing function sa user repo
             reject({
               status: 409,
               error: { message: "Username is taken." },
@@ -82,6 +85,7 @@ module.exports = (usersRepository) => {
                 });
               } else {
                 if (email && username && password) {
+                  // dapat nasa taas
                   if (
                     isValidEmail(email) &&
                     isValidUsername(username) &&
@@ -89,6 +93,7 @@ module.exports = (usersRepository) => {
                   ) {
                     bcrypt.genSalt(saltRounds, (err, salt) => {
                       bcrypt.hash(password, salt, (err, hash) => {
+                        const now = Date.now();
                         usersRepository
                           .registerUser(
                             id,
@@ -96,14 +101,18 @@ module.exports = (usersRepository) => {
                             email,
                             hash,
                             "https://i.imgur.com/lccuiDX.png",
-                            Date.now()
+                            now
                           )
                           .then(() => {
-                            usersRepository
-                              .getUserInformation(id)
-                              .then((data) => {
-                                resolve(data[0][0][0]);
-                              });
+                            const user = {
+                              id: id,
+                              username: username,
+                              email: email,
+                              profilePicture: "https://i.imgur.com/lccuiDX.png",
+                              created_at: now,
+                            };
+                            const token = jwt.sign({ data: user }, "secret");
+                            resolve({ data: user, token: token });
                           })
                           .catch((error) => {
                             reject(error);
@@ -140,18 +149,20 @@ module.exports = (usersRepository) => {
     loginUser: (req, res) => {
       // NOT SURE ABOUT THIS STRUCTURE;
       // A LOT OF REPEATED CODE
+
+      // SYNC NOTES:
+      // if user is not in database
+      // bonus na lang
+      // can make into helper function
+      // validate login user helper (pass in data)
+      // pwede ireturn yung actual status tapos gamitin sa promise chain
+
       new Promise((resolve, reject) => {
         const { loginInfo, password } = req.body;
         let user;
         if (isValidEmail(loginInfo)) {
           // login info entered is email
           usersRepository.loginUser("", loginInfo).then((data) => {
-            // SYNC NOTES:
-            // if user is not in database
-            // bonus na lang
-            // can make into helper function
-            // validate login user helper (pass in data)
-            // pwede ireturn yung actual status tapos gamitin sa promise chain
             if (data[0][0].length == 0) {
               reject({
                 status: 404,
@@ -159,9 +170,11 @@ module.exports = (usersRepository) => {
               });
             }
             user = data[0][0][0];
-            bcrypt.compare(password, user.PASSWORD, (err, res) => {
+            bcrypt.compare(password, user.password, (err, res) => {
               if (res) {
-                resolve({ message: "Successfully logged in." });
+                delete user.password;
+                const token = jwt.sign({ data: user }, "secret");
+                resolve({ data: user, token: token });
               } else {
                 reject({
                   status: 401,
@@ -173,7 +186,6 @@ module.exports = (usersRepository) => {
         } else {
           // login info entered is username
           usersRepository.loginUser(loginInfo, "").then((data) => {
-            // if user is not in database
             if (data[0][0].length == 0) {
               reject({
                 status: 404,
@@ -181,13 +193,16 @@ module.exports = (usersRepository) => {
               });
             }
             user = data[0][0][0];
-            bcrypt.compare(password, user.PASSWORD, (err, res) => {
+            console.log(user);
+            bcrypt.compare(password, user.password, (err, res) => {
               if (res) {
-                resolve({ message: "Successfully logged in." });
+                delete user.password;
+                const token = jwt.sign({ data: user }, "secret");
+                resolve({ data: user, token: token });
               } else {
                 reject({
                   status: 401,
-                  error: { message: "Username and password do not match." },
+                  error: { message: "Email and password do not match." },
                 });
               }
             });

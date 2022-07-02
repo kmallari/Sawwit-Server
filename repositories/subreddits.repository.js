@@ -3,26 +3,28 @@ module.exports = (knex) => {
     getAllSubreddits: () => {
       return knex.raw("CALL GetAllSubreddits()");
     },
-    createSubreddit: (id, name, description, icon, createdAt) => {
-      return knex.raw("CALL CreateSubreddit(?, ?, ?, ?, ?)", [
-        id,
+    createSubreddit: (name, description, icon, createdAt) => {
+      return knex.raw("CALL CreateSubreddit(?, ?, ?, ?)", [
         name,
         description,
         icon,
         createdAt,
       ]);
     },
-    checkIfSubredditExists: (name, id) => {
+    checkIfSubredditExists: (name) => {
       return knex.raw("CALL CheckIfSubredditExists(?)", [name]);
     },
-    getOneSubreddit: (id) => {
-      return knex.raw("CALL GetOneSubreddit(?)", [id]);
+    getSubredditInfo: (name) => {
+      return knex.raw("CALL GetSubredditInfo(?)", [name]);
     },
-    updateSubredditDescription: (id, description) => {
+    updateSubredditDescription: (name, description) => {
       return knex.raw("CALL UpdateSubredditDescription(?, ?)", [
-        id,
+        name,
         description,
       ]);
+    },
+    searchSubreddit: (name) => {
+      return knex.raw("CALL SearchSubreddit(?)", [name]);
     },
   };
   return subredditsRepository;

@@ -26,6 +26,10 @@ router.delete("/:postId", postController.deletePost);
 // comments
 router.post("/:postId/comments", commentController.postComment);
 router.get("/:postId/comments", commentController.getPostComments);
+router.get(
+  "/:postId/comments/next",
+  commentController.getNextComments
+);
 router.get("/:postId/comments/:commentId", commentController.getOneComment);
 router.put("/:postId/comments/:commentId", commentController.putComment);
 router.delete("/:postId/comments/:commentId", commentController.deleteComment);

@@ -9,7 +9,8 @@ const subredditController = require("../controllers/subreddit.controller.js")(
 );
 
 router.get("/", subredditController.getAllSubreddits);
-router.get("/:subredditId", subredditController.getOneSubreddit);
+router.get("/search", subredditController.searchSubreddit);
+router.get("/:subreddit", subredditController.getSubredditInfo);
 router.post("/", subredditController.postSubreddit);
 router.put("/:subreddit", subredditController.putSubreddit);
 

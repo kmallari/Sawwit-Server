@@ -105,7 +105,7 @@ module.exports = (subredditsRepository) => {
                       )
                       .then(() => {
                         resolve({
-                          subreddit: subredditName,
+                          name: subredditName,
                           icon: "https://i.imgur.com/8OLatuA.png",
                           description: description,
                         });

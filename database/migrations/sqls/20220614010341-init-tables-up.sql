@@ -86,7 +86,7 @@ INSERT INTO
     id,
     username,
     email,
-    password,
+    PASSWORD,
     profilePicture,
     createdAt
   )
@@ -141,7 +141,7 @@ SELECT
   username,
   email,
   profilePicture,
-  password,
+  PASSWORD,
   createdAt
 FROM
   users
@@ -199,7 +199,7 @@ CREATE PROCEDURE UpdatePassword(p_id VARCHAR(21), p_password VARCHAR(255)) BEGIN
 UPDATE
   users
 SET
-  password = p_password
+  PASSWORD = p_password
 WHERE
   id = p_id;
 

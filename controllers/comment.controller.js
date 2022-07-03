@@ -117,7 +117,10 @@ module.exports = (commentsRepository) => {
                             parentId: parentId,
                             body: comment,
                             createdAt: Date.now(),
-                            parentLevel,
+                            level: parentLevel + 1,
+                            upvotes: 0,
+                            downvotes: 0,
+                            childrenCount: 0,
                           });
                         })
                         .catch((err) => {

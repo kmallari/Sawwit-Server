@@ -69,7 +69,7 @@ module.exports = (usersRepository) => {
         // if walang way to wait for db operation, minsan kahit ibalik na lang
         // yung pinass na parameters
 
-        usersRepository.checkIfUserExists(username).then((data) => {
+        usersRepository.checkIfUsernameExists(username).then((data) => {
           if (data[0][0][0]["COUNT(username)"] > 0) {
             // baka pwedeng gawing function sa user repo
             reject({
@@ -163,6 +163,7 @@ module.exports = (usersRepository) => {
         if (isValidEmail(loginInfo)) {
           // login info entered is email
           usersRepository.loginUser("", loginInfo).then((data) => {
+            console.log("DATA", data);
             if (data[0][0].length == 0) {
               reject({
                 status: 404,
@@ -170,7 +171,8 @@ module.exports = (usersRepository) => {
               });
             }
             user = data[0][0][0];
-            bcrypt.compare(password, user.password, (err, res) => {
+            console.log("USER", user);
+            bcrypt.compare(password, user.PASSWORD, (err, res) => {
               if (res) {
                 delete user.password;
                 const token = jwt.sign({ data: user }, "secret");
@@ -186,15 +188,19 @@ module.exports = (usersRepository) => {
         } else {
           // login info entered is username
           usersRepository.loginUser(loginInfo, "").then((data) => {
+            console.log("DATA", data[0][0].length);
+
             if (data[0][0].length == 0) {
-              reject({
+              return reject({
                 status: 404,
                 error: { message: "User not found." },
               });
             }
-            user = data[0][0][0];
+            user = data[0][0][0]; // if user, doon lang mag bcrypt compare
+            console.log("USER", user);
+
             console.log(user);
-            bcrypt.compare(password, user.password, (err, res) => {
+            bcrypt.compare(password, user.PASSWORD, (err, res) => {
               if (res) {
                 delete user.password;
                 const token = jwt.sign({ data: user }, "secret");
@@ -206,7 +212,7 @@ module.exports = (usersRepository) => {
                 });
               }
             });
-          });
+          }); // add catch
         }
       })
         .then((data) => {
@@ -222,9 +228,9 @@ module.exports = (usersRepository) => {
         const id = req.params.userId;
         if (id) {
           usersRepository
-            .checkIfIDExists(id)
+            .checkIfUserExists(id)
             .then((data) => {
-              if (data[0][0][0]["COUNT(id)"] > 0) {
+              if (data[0][0].length > 0) {
                 usersRepository
                   .getUserInformation(id)
                   .then((user) => {
@@ -243,10 +249,10 @@ module.exports = (usersRepository) => {
                 });
               }
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -278,8 +284,8 @@ module.exports = (usersRepository) => {
 
         const { email, username, password, profilePicture } = req.body; // depende sa existing fields yung ipapass sa promise.all
         const id = req.params.userId;
-        usersRepository.checkIfIDExists(id).then((data) => {
-          if (data[0][0][0]["COUNT(id)"] > 0) {
+        usersRepository.checkIfUserExists(id).then((data) => {
+          if (data[0][0].length > 0) {
             // there is a user that exists with the id
             // unahin mga validations; first promise all, puro validations
             let emailValidation;
@@ -309,16 +315,18 @@ module.exports = (usersRepository) => {
             if (username) {
               usernameValidation = new Promise((resolve, reject) => {
                 if (isValidUsername) {
-                  usersRepository.checkIfUserExists(username).then((data) => {
-                    if (data[0][0][0]["COUNT(username)"] > 0) {
-                      reject({
-                        status: 409,
-                        error: { message: "Username is already in use." },
-                      });
-                    } else {
-                      resolve(true);
-                    }
-                  });
+                  usersRepository
+                    .checkIfUsernameExists(username)
+                    .then((data) => {
+                      if (data[0][0][0]["COUNT(username)"] > 0) {
+                        reject({
+                          status: 409,
+                          error: { message: "Username is already in use." },
+                        });
+                      } else {
+                        resolve(true);
+                      }
+                    });
                 } else {
                   reject({
                     status: 403,
@@ -499,8 +507,8 @@ module.exports = (usersRepository) => {
     deleteUser: (req, res) => {
       new Promise((resolve, reject) => {
         const id = req.params.userId;
-        usersRepository.checkIfIDExists(id).then((data) => {
-          if (data[0][0][0]["COUNT(id)"] > 0) {
+        usersRepository.checkIfUserExists(id).then((data) => {
+          if (data[0][0].length > 0) {
             usersRepository
               .deleteUser(id)
               .then(resolve())

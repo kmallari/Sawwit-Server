@@ -24,10 +24,10 @@ module.exports = (postsRepository) => {
               });
             }
           })
-          .catch(() => {
+          .catch((err) => {
             reject({
               status: 500,
-              error: { message: "Internal server error. (SQL)" },
+              error: err,
             });
           });
       })
@@ -56,10 +56,10 @@ module.exports = (postsRepository) => {
               });
             }
           })
-          .catch(() => {
+          .catch((err) => {
             reject({
               status: 500,
-              error: { message: "Internal server error. (SQL)" },
+              error: err,
             });
           });
       })
@@ -89,18 +89,18 @@ module.exports = (postsRepository) => {
                   .then((data) => {
                     resolve(data[0][0][0]);
                   })
-                  .catch(() => {
+                  .catch((err) => {
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL)" },
+                      error: err,
                     });
                   });
               }
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -123,9 +123,9 @@ module.exports = (postsRepository) => {
         const userId = req.params.userId;
         if (userId) {
           postsRepository
-            .checkIfIDExists(userId)
+            .checkIfUserExists(userId)
             .then((data) => {
-              if (data[0][0][0]["COUNT(id)"] === 0) {
+              if (data[0][0].length === 0) {
                 reject({ status: 404, error: { message: "User not found." } });
               } else {
                 postsRepository
@@ -133,10 +133,10 @@ module.exports = (postsRepository) => {
                   .then((data) => {
                     resolve(data[0][0]);
                   })
-                  .catch(() => {
+                  .catch((err) => {
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL)" },
+                      error: err,
                     });
                   });
               }
@@ -172,17 +172,18 @@ module.exports = (postsRepository) => {
             if (isValidPostBody(body)) {
               postsRepository
                 .checkIfSubredditExists(subreddit)
-                .then((data) => {
-                  if (data[0][0][0]["COUNT(name)"] === 0) {
+                .then((subredditData) => {
+                  console.log("subreddit data: ", subredditData[0][0][0].icon);
+                  if (subredditData[0][0].length === 0) {
                     reject({
                       status: 404,
                       error: { message: "Subreddit not found." },
                     });
                   } else {
                     postsRepository
-                      .checkIfIDExists(userId)
-                      .then((data) => {
-                        if (data[0][0][0]["COUNT(id)"] === 0) {
+                      .checkIfUserExists(userId)
+                      .then((userData) => {
+                        if (userData[0][0].length === 0) {
                           reject({
                             status: 404,
                             error: { message: "User not found." },
@@ -197,6 +198,7 @@ module.exports = (postsRepository) => {
                               title,
                               body,
                               subreddit,
+                              subredditData[0][0][0].icon,
                               Date.now()
                             )
                             .then(() => {
@@ -207,31 +209,30 @@ module.exports = (postsRepository) => {
                                 title: title,
                                 body: body,
                                 subreddit: subreddit,
+                                subredditIcon: subredditData[0][0][0].icon,
                               });
                             })
-                            .catch((error) => {
-                              console.log(error);
+                            .catch((err) => {
                               reject({
                                 status: 500,
-                                error: {
-                                  message: "Internal server error. (SQL1)",
-                                },
+                                error: err,
                               });
                             });
                         }
                       })
-                      .catch(() => {
+                      .catch((err) => {
                         reject({
                           status: 500,
-                          error: { message: "Internal server error. (SQL2)" },
+                          error: err,
                         });
                       });
                   }
                 })
-                .catch(() => {
+                .catch((err) => {
+                  console.error(err);
                   reject({
                     status: 500,
-                    error: { message: "Internal server error. (SQL3)" },
+                    error: err,
                   });
                 });
             } else {
@@ -284,18 +285,18 @@ module.exports = (postsRepository) => {
                       body: message,
                     });
                   })
-                  .catch(() => {
+                  .catch((err) => {
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL)" },
+                      error: err,
                     });
                   });
               }
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -356,6 +357,142 @@ module.exports = (postsRepository) => {
           res.status(200).json({
             message: `Successfully deleted post with the id of ${postId}`,
           });
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    votePost: (req, res) => {
+      new Promise((resolve, reject) => {
+        const postId = req.params.postId;
+        const { userId, vote } = req.body;
+        if (postId && userId && vote) {
+          if (vote > 1 || vote < -1) {
+            reject({
+              status: 400,
+              error: { message: "Invalid vote." },
+            });
+          } else {
+            postsRepository
+              .checkIfPostExists(postId)
+              .then((data) => {
+                if (data[0][0][0]["COUNT(id)"] === 0) {
+                  reject({
+                    status: 404,
+                    error: { message: "Post not found." },
+                  });
+                } else {
+                  postsRepository
+                    .checkIfUserExists(userId)
+                    .then((data) => {
+                      if (data[0][0].length === 0) {
+                        reject({
+                          status: 404,
+                          error: { message: "User not found." },
+                        });
+                      } else {
+                        postsRepository
+                          .checkIfUserHasVoted(userId, postId)
+                          .then((data) => {
+                            console.log("DATA!", data[0][0]);
+                            if (data[0][0].length === 0) {
+                              postsRepository
+                                .votePost(userId, postId, vote)
+                                .then(() => {
+                                  resolve({
+                                    id: postId,
+                                    userId: userId,
+                                    vote: vote,
+                                  });
+                                })
+                                .catch(() => {
+                                  reject({
+                                    status: 500,
+                                    error: {
+                                      message: "Internal server error. (SQL1)",
+                                    },
+                                  });
+                                });
+                            } else {
+                              if (data[0][0][0].vote === vote) {
+                                postsRepository
+                                  .deleteVote(userId, postId)
+                                  .then(() => {
+                                    resolve({
+                                      id: postId,
+                                      userId: userId,
+                                      vote: vote,
+                                    });
+                                  })
+                                  .catch(() => {
+                                    reject({
+                                      status: 500,
+                                      error: {
+                                        message:
+                                          "Internal server error. (SQL5)",
+                                      },
+                                    });
+                                  });
+                              } else {
+                                postsRepository
+                                  .updateVote(userId, postId, vote)
+                                  .then(() => {
+                                    resolve({
+                                      id: postId,
+                                      userId: userId,
+                                      vote: vote,
+                                    });
+                                  })
+                                  .catch((err) => {
+                                    console.error(err);
+                                    reject({
+                                      status: 500,
+                                      error: {
+                                        message:
+                                          "Internal server error. (SQL6)",
+                                      },
+                                    });
+                                  });
+                              }
+                            }
+                          })
+                          .catch((err) => {
+                            console.log(err);
+                            reject({
+                              status: 500,
+                              error: {
+                                message: "Internal server error. (SQL2)",
+                              },
+                            });
+                          });
+                      }
+                    })
+                    .catch((err) => {
+                      console.error("ERROR", err);
+                      reject({
+                        status: 500,
+                        error: err,
+                      });
+                    });
+                }
+              })
+              .catch((err) => {
+                reject({
+                  status: 500,
+                  error: err,
+                });
+              });
+          }
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing parameters." },
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);

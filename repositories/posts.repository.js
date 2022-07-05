@@ -13,16 +13,17 @@ module.exports = (knex) => {
       title,
       body,
       subredditName,
+      subredditIcon,
       createdAt
     ) => {
-      return knex.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?)", [
+      return knex.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
         title,
         body,
-
         subredditName,
+        subredditIcon,
         createdAt,
       ]);
     },
@@ -47,10 +48,21 @@ module.exports = (knex) => {
     checkIfSubredditExists: (name) => {
       return knex.raw("CALL CheckIfSubredditExists(?)", [name]);
     },
-    checkIfIDExists: (id) => {
+    checkIfUserExists: (id) => {
       return knex.raw("CALL CheckIfIDExists(?)", [id]);
     },
-    
+    checkIfUserHasVoted: (userId, postId) => {
+      return knex.raw("CALL CheckIfUserVotedPost(?, ?)", [userId, postId]);
+    },
+    votePost: (userId, postId, vote) => {
+      return knex.raw("CALL CreatePostVote(?, ?, ?)", [userId, postId, vote]);
+    },
+    deleteVote: (userId, postId) => {
+      return knex.raw("CALL DeletePostVote(?, ?)", [userId, postId]);
+    },
+    updateVote: (userId, postId, vote) => {
+      return knex.raw("CALL UpdatePostVote(?, ?, ?)", [userId, postId, vote]);
+    },
   };
   return postsRepository;
 };

@@ -7,16 +7,18 @@ module.exports = (knex) => {
       id,
       userId,
       username,
+      userProfilePicture,
       postId,
       parentId,
       body,
       createdAt,
       parentLevel
     ) => {
-      return knex.raw("CALL CreateComment(?, ?, ?, ?, ?, ?, ?, ?)", [
+      return knex.raw("CALL CreateComment(?, ?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
+        userProfilePicture,
         postId,
         parentId,
         body,
@@ -45,10 +47,9 @@ module.exports = (knex) => {
     checkIfPostExists: (postId) => {
       return knex.raw("CALL CheckIfPostExists(?)", [postId]);
     },
-    checkIfIDExists: (id, username) => {
+    checkIfUserExists: (id) => {
       return knex.raw("CALL CheckIfIDExists(?)", [id]);
     },
-  
   };
   return commentsRepository;
 };

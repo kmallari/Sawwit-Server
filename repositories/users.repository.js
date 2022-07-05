@@ -3,13 +3,13 @@ module.exports = (knex) => {
     getAllUsers: () => {
       return knex.raw("CALL GetAllUsers()");
     },
-    checkIfUserExists: (username) => {
+    checkIfUsernameExists: (username) => {
       return knex.raw("CALL CheckIfUsernameExists(?)", [username]);
     },
     checkIfEmailExists: (email) => {
       return knex.raw("CALL CheckIfEmailExists(?)", [email]);
     },
-    checkIfIDExists: (id, username) => {
+    checkIfUserExists: (id) => {
       return knex.raw("CALL CheckIfIDExists(?)", [id]);
     },
     registerUser: (

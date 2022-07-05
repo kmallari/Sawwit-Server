@@ -30,10 +30,10 @@ module.exports = (subredditsRepository) => {
               });
             }
           })
-          .catch(() => {
+          .catch((err) => {
             reject({
               status: 500,
-              error: { message: "Internal server error. (SQL)" },
+              error: err,
             });
           });
       })
@@ -62,11 +62,7 @@ module.exports = (subredditsRepository) => {
               }
             })
             .catch(() => {
-              reject(
-                res
-                  .status(500)
-                  .json({ error: { message: "Internal server error. (SQL)" } })
-              );
+              reject(res.status(500).json({ error: err }));
             });
         } else {
           reject(
@@ -95,7 +91,7 @@ module.exports = (subredditsRepository) => {
               subredditsRepository
                 .checkIfSubredditExists(subredditName)
                 .then((data) => {
-                  if (data[0][0][0]["COUNT(name)"] === 0) {
+                  if (data[0][0].length === 0) {
                     subredditsRepository
                       .createSubreddit(
                         subredditName,
@@ -165,7 +161,7 @@ module.exports = (subredditsRepository) => {
           subredditsRepository
             .checkIfSubredditExists(subreddit)
             .then((data) => {
-              if (data[0][0][0]["COUNT(name)"] === 0) {
+              if (data[0][0].length === 0) {
                 reject({
                   status: 404,
                   error: { message: "Subreddit not found." },
@@ -179,20 +175,20 @@ module.exports = (subredditsRepository) => {
                       description: description,
                     });
                   })
-                  .catch(() => {
+                  .catch((err) => {
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL)" },
+                      error: err,
                     });
                   });
               }
             })
-            .catch(
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
-              })
-            );
+                error: err,
+              });
+            });
         } else {
           reject({
             status: 404,
@@ -225,10 +221,10 @@ module.exports = (subredditsRepository) => {
                 });
               }
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {

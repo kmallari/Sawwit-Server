@@ -16,10 +16,10 @@ module.exports = (commentsRepository) => {
               });
             }
           })
-          .catch(() => {
+          .catch((err) => {
             reject({
               status: 500,
-              error: { message: "Internal server error. (SQL)" },
+              error: err,
             });
           });
       })
@@ -45,10 +45,9 @@ module.exports = (commentsRepository) => {
                     resolve(data[0][0]);
                   })
                   .catch((err) => {
-                    console.log(err);
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL)" },
+                      error: err,
                     });
                   });
               } else {
@@ -58,10 +57,10 @@ module.exports = (commentsRepository) => {
                 });
               }
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -91,17 +90,19 @@ module.exports = (commentsRepository) => {
           commentsRepository
             .checkIfPostExists(postId)
             .then((data) => {
-              if (data[0][0][0]["COUNT(id)"] > 0) {
+              if (data[0][0].length > 0) {
                 commentsRepository
-                  .checkIfIDExists(userId)
-                  .then((data) => {
-                    if (data[0][0][0]["COUNT(id)"] > 0) {
-                      console.log(userId, username, comment, parentId);
+                  .checkIfUserExists(userId)
+                  .then((userData) => {
+                    if (userData[0][0].length > 0) {
+                      // console.log(userId, username, comment, parentId);
+                      console.log(userData[0][0][0]);
                       commentsRepository
                         .createComment(
                           id,
                           userId,
                           username,
+                          userData[0][0][0].profilePicture,
                           postId,
                           parentId,
                           comment,
@@ -127,7 +128,7 @@ module.exports = (commentsRepository) => {
                           console.error(err);
                           reject({
                             status: 500,
-                            error: { message: "Internal server error. (SQL1)" },
+                            error: err,
                           });
                         });
                     } else {
@@ -137,11 +138,10 @@ module.exports = (commentsRepository) => {
                       });
                     }
                   })
-                  .catch((error) => {
-                    console.error(error);
+                  .catch((err) => {
                     reject({
                       status: 500,
-                      error: { message: "Internal server error. (SQL2)" },
+                      error: err,
                     });
                   });
               } else {
@@ -151,10 +151,10 @@ module.exports = (commentsRepository) => {
                 });
               }
             })
-            .catch(() =>
+            .catch((err) =>
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL3)" },
+                error: err,
               })
             );
         } else {
@@ -187,18 +187,18 @@ module.exports = (commentsRepository) => {
                 .then((data) => {
                   resolve(data[0][0][0]);
                 })
-                .catch(() => {
+                .catch((err) => {
                   reject({
                     status: 500,
-                    error: { message: "Internal server error. (SQL)" },
+                    error: err,
                   });
                 });
             }
           })
-          .catch(() => {
+          .catch((err) => {
             reject({
               status: 500,
-              error: { message: "Internal server error. (SQL)" },
+              error: err,
             });
           });
       })
@@ -225,7 +225,7 @@ module.exports = (commentsRepository) => {
               console.error(err);
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -258,10 +258,10 @@ module.exports = (commentsRepository) => {
                 comment: comment,
               });
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error. (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -297,18 +297,18 @@ module.exports = (commentsRepository) => {
                 .then(() => {
                   resolve(commentId);
                 })
-                .catch(() => {
+                .catch((err) => {
                   reject({
                     status: 500,
-                    error: { message: "Internal server error. (SQL)" },
+                    error: err,
                   });
                 });
             }
           })
-          .catch(() => {
+          .catch((err) => {
             reject({
               status: 500,
-              error: { message: "Internal server error. (SQL)" },
+              error: err,
             });
           });
       })

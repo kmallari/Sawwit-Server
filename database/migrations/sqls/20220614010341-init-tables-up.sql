@@ -17,6 +17,7 @@ CREATE TABLE `posts` (
   `title` VARCHAR(300) NOT NULL,
   `body` VARCHAR(40000) NOT NULL,
   `subreddit` VARCHAR(20) NOT NULL,
+  `subredditIcon` VARCHAR(255) NOT NULL,
   `commentsCount` INT NOT NULL,
   `upvotes` INT NOT NULL,
   `downvotes` INT NOT NULL,
@@ -27,6 +28,7 @@ CREATE TABLE `comments` (
   `id` VARCHAR(21) NOT NULL PRIMARY KEY,
   `userId` VARCHAR(21) NOT NULL,
   `username` VARCHAR(20) NOT NULL,
+  `userProfilePicture` VARCHAR (255) NOT NULL,
   `postId` VARCHAR(21) NOT NULL,
   `parentId` VARCHAR(21) NOT NULL,
   `body` VARCHAR(10000) NOT NULL,
@@ -124,7 +126,9 @@ END;
 
 CREATE PROCEDURE CheckIfIDExists(p_ID VARCHAR(21)) BEGIN
 SELECT
-  COUNT(id)
+  id,
+  username,
+  profilePicture
 FROM
   users
 WHERE
@@ -253,6 +257,7 @@ CREATE PROCEDURE CreatePost(
   IN p_title VARCHAR(300),
   IN p_body VARCHAR(40000),
   IN p_subreddit VARCHAR(20),
+  IN p_subredditIcon VARCHAR(255),
   IN p_createdAt BIGINT
 ) BEGIN
 INSERT INTO
@@ -263,6 +268,7 @@ INSERT INTO
     title,
     body,
     subreddit,
+    subredditIcon,
     createdAt,
     commentsCount,
     upvotes,
@@ -276,6 +282,7 @@ VALUES
     p_title,
     p_body,
     p_subreddit,
+    p_subredditIcon,
     p_createdAt,
     0,
     0,
@@ -362,7 +369,9 @@ END;
 
 CREATE PROCEDURE CheckIfSubredditExists(p_subreddit VARCHAR(20)) BEGIN
 SELECT
-  COUNT(name)
+  name,
+  icon,
+  postCount
 FROM
   subreddits
 WHERE
@@ -433,6 +442,7 @@ CREATE PROCEDURE CreateComment(
   IN p_id VARCHAR(21),
   IN p_userid VARCHAR(21),
   IN p_username VARCHAR(20),
+  IN p_userProfilePicture VARCHAR(255),
   IN p_postid VARCHAR(21),
   IN p_parentid VARCHAR(21),
   IN p_body VARCHAR(10000),
@@ -444,6 +454,7 @@ INSERT INTO
     id,
     userId,
     username,
+    userProfilePicture,
     postId,
     parentId,
     body,
@@ -458,6 +469,7 @@ VALUES
     p_id,
     p_userid,
     p_username,
+    p_userProfilePicture,
     p_postid,
     p_parentid,
     p_body,
@@ -598,7 +610,7 @@ END;
 -- STORED PROCEDURES FOR POST VOTES
 CREATE PROCEDURE CheckIfUserVotedPost(p_userId VARCHAR(21), p_postId VARCHAR(21)) BEGIN
 SELECT
-  COUNT(userId)
+  vote
 FROM
   postVotes
 WHERE
@@ -607,6 +619,7 @@ WHERE
 
 END;
 
+-- PROBABLY CAN DELETE THIS, AS WELL AS THE GetCommentsVotes procedure
 CREATE PROCEDURE GetPostVotes (p_postId VARCHAR(21)) BEGIN
 SELECT
   SUM (vote)
@@ -627,6 +640,64 @@ INSERT INTO
 VALUES
   (p_userId, p_postId, p_vote);
 
+UPDATE
+  posts
+SET
+  upvotes = upvotes + p_vote
+WHERE
+  id = p_postId
+  AND p_vote = 1;
+
+UPDATE
+  posts
+SET
+  downvotes = downvotes + p_vote
+WHERE
+  id = p_postId
+  AND p_vote = -1;
+
+END;
+
+CREATE PROCEDURE UpdateVote (
+  p_userId VARCHAR(21),
+  p_postId VARCHAR(21),
+  p_vote INT
+) BEGIN
+UPDATE
+  postVotes
+SET
+  vote = p_vote
+WHERE
+  userId = p_userId
+  AND postId = p_postId;
+
+END;
+
+CREATE PROCEDURE DeletePostVote (
+  p_userId VARCHAR(21),
+  p_postId VARCHAR(21)
+) BEGIN
+DELETE FROM
+  postVotes
+WHERE
+  userId = p_userId
+  AND postId = p_postId;
+
+-- !! WRONG CODE BELOW !!
+-- UPDATE
+--   posts
+-- SET
+--   upvotes = upvotes - 1
+-- WHERE
+--   id = p_postId
+--   AND vote = 1;
+-- UPDATE
+--   posts
+-- SET
+--   downvotes = downvotes - 1
+-- WHERE
+--   id = p_postId
+--   AND vote = -1;
 END;
 
 -- STORE PROCEDURES FOR COMMENT VOTES

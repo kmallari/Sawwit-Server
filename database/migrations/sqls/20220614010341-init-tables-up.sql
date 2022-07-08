@@ -57,15 +57,71 @@ CREATE TABLE `subscriptions` (
 CREATE TABLE `postVotes` (
   `userId` VARCHAR(21) NOT NULL,
   `postId` VARCHAR(21) NOT NULL,
-  `vote` INT NOT NULL
+  `vote` TINYINT NOT NULL
 );
 
 CREATE TABLE `commentVotes` (
   `userId` VARCHAR(21) NOT NULL,
   `commentId` VARCHAR(21) NOT NULL,
-  `vote` INT NOT NULL
+  `vote` TINYINT NOT NULL
 );
 
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- CREATING INDEXES FOR USERS
+ALTER TABLE
+  `users`
+ADD
+  UNIQUE INDEX `username_index` (`username`);
+
+ALTER TABLE
+  `users`
+ADD
+  UNIQUE INDEX `email_index` (`email`);
+
+ALTER TABLE
+  `users`
+ADD
+  INDEX `createdAt_index` (`createdAt` DESC);
+
+-- CREATING INDEXES FOR SUBREDDITS;
+ALTER TABLE
+  `subreddits`
+ADD
+  INDEX `createdAt_index` (`createdAt` DESC);
+
+-- CREATING INDEXES FOR POSTS
+ALTER TABLE
+  `posts`
+ADD
+  INDEX `userId_index` (`userId`);
+
+ALTER TABLE
+  `posts`
+ADD
+  INDEX `subreddit_index` (`subreddit`);
+
+ALTER TABLE
+  `posts`
+ADD
+  INDEX `createdAt_index` (`createdAt` DESC);
+
+-- CREATING INDEXES FOR COMMENTS
+ALTER TABLE
+  `comments`
+ADD
+  INDEX `postId_index` (`postId`);
+
+ALTER TABLE
+  `comments`
+ADD
+  INDEX `parentId_index` (`parentId`);
+
+ALTER TABLE
+  `comments`
+ADD
+  INDEX `createdAt_index` (`createdAt` DESC);
+
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- CREATING THE STORED PROCEDURES FOR USERS
 CREATE PROCEDURE GetAllUsers () BEGIN
 SELECT
@@ -633,7 +689,7 @@ END;
 CREATE PROCEDURE CreatePostVote (
   p_userId VARCHAR(21),
   p_postId VARCHAR(21),
-  p_vote INT
+  p_vote TINYINT
 ) BEGIN
 INSERT INTO
   postVotes (userId, postId, vote)
@@ -651,17 +707,17 @@ WHERE
 UPDATE
   posts
 SET
-  downvotes = downvotes + p_vote
+  downvotes = downvotes - p_vote
 WHERE
   id = p_postId
   AND p_vote = -1;
 
 END;
 
-CREATE PROCEDURE UpdateVote (
+CREATE PROCEDURE UpdatePostVote (
   p_userId VARCHAR(21),
   p_postId VARCHAR(21),
-  p_vote INT
+  p_vote TINYINT
 ) BEGIN
 UPDATE
   postVotes
@@ -675,7 +731,8 @@ END;
 
 CREATE PROCEDURE DeletePostVote (
   p_userId VARCHAR(21),
-  p_postId VARCHAR(21)
+  p_postId VARCHAR(21),
+  p_vote TINYINT
 ) BEGIN
 DELETE FROM
   postVotes
@@ -683,27 +740,28 @@ WHERE
   userId = p_userId
   AND postId = p_postId;
 
--- !! WRONG CODE BELOW !!
--- UPDATE
---   posts
--- SET
---   upvotes = upvotes - 1
--- WHERE
---   id = p_postId
---   AND vote = 1;
--- UPDATE
---   posts
--- SET
---   downvotes = downvotes - 1
--- WHERE
---   id = p_postId
---   AND vote = -1;
+UPDATE
+  posts
+SET
+  upvotes = upvotes - 1
+WHERE
+  id = p_postId
+  AND p_vote = 1;
+
+UPDATE
+  posts
+SET
+  downvotes = downvotes - 1
+WHERE
+  id = p_postId
+  AND p_vote = -1;
+
 END;
 
 -- STORE PROCEDURES FOR COMMENT VOTES
 CREATE PROCEDURE CheckIfUserVotedComment (p_userId VARCHAR(21), p_commentId VARCHAR(21)) BEGIN
 SELECT
-  COUNT(userId)
+  vote
 FROM
   commentVotes
 WHERE

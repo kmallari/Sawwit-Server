@@ -1,7 +1,7 @@
-module.exports = (knex) => {
+module.exports = (db, redis) => {
   const commentsRepository = {
     getAllComments: () => {
-      return knex.raw("CALL GetAllComments()");
+      return db.raw("CALL GetAllComments()");
     },
     createComment: (
       id,
@@ -14,7 +14,7 @@ module.exports = (knex) => {
       createdAt,
       parentLevel
     ) => {
-      return knex.raw("CALL CreateComment(?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+      return db.raw("CALL CreateComment(?, ?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
@@ -27,28 +27,38 @@ module.exports = (knex) => {
       ]);
     },
     getPostComments: (postId) => {
-      return knex.raw("CALL GetPostComments(?)", [postId]);
+      return db.raw("CALL GetPostComments(?)", [postId]);
     },
     getNextComments: (parentId) => {
-      return knex.raw("CALL GetNextComments(?)", [parentId]);
+      return db.raw("CALL GetNextComments(?)", [parentId]);
     },
     deleteComment: (id) => {
-      return knex.raw("CALL DeleteComment(?)", [id]);
+      return db.raw("CALL DeleteComment(?)", [id]);
     },
     getOneComment: (id) => {
-      return knex.raw("CALL GetOneComment(?)", [id]);
+      return db.raw("CALL GetOneComment(?)", [id]);
     },
     changeComment: (id, body) => {
-      return knex.raw("CALL ChangeComment(?, ?)", [id, body]);
+      return db.raw("CALL ChangeComment(?, ?)", [id, body]);
     },
     checkIfCommentExists: (id) => {
-      return knex.raw("CALL CheckIfCommentExists(?)", [id]);
+      return db.raw("CALL CheckIfCommentExists(?)", [id]);
     },
     checkIfPostExists: (postId) => {
-      return knex.raw("CALL CheckIfPostExists(?)", [postId]);
+      return db.raw("CALL CheckIfPostExists(?)", [postId]);
     },
     checkIfUserExists: (id) => {
-      return knex.raw("CALL CheckIfIDExists(?)", [id]);
+      return db.raw("CALL CheckIfIDExists(?)", [id]);
+    },
+    setParentCommentsToCache: (postId, parentIds) => {
+      // kung gumamit ng hset/hash hindi na kailangan mag setParentCommentsToCache sa una
+      return redis.set(postId, JSON.stringify(parentIds), 'ex', 5);
+    },
+    getCommentsFromCache: (postId) => {
+      return redis.get(postId);
+    },
+    clearCachedCommentsForPost: (postId) => {
+      return redis.del(postId);
     },
   };
   return commentsRepository;

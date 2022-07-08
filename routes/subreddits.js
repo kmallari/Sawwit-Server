@@ -1,9 +1,9 @@
 var express = require("express");
 var router = express.Router();
 
-const knex = require("../repositories/db.config.js");
+const db = require("../repositories/db.config.js");
 const subredditsRepository =
-  require("../repositories/subreddits.repository.js")(knex);
+  require("../repositories/subreddits.repository.js")(db);
 const subredditController = require("../controllers/subreddit.controller.js")(
   subredditsRepository
 );

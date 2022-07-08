@@ -1,19 +1,19 @@
-module.exports = (knex) => {
+module.exports = (db) => {
   const votesRepository = {
     checkIfUserVotedPost: (userId, postId) => {
-      return knex.raw("CALL CheckIfUserVotedPost(?, ?)", [userId, postId]);
+      return db.raw("CALL CheckIfUserVotedPost(?, ?)", [userId, postId]);
     },
     checkIfUserVotedComment: (userId, commentId) => {
-      return knex.raw("CALL CheckIfUserVotedComment(?, ?)", [
+      return db.raw("CALL CheckIfUserVotedComment(?, ?)", [
         userId,
         commentId,
       ]);
     },
     createPostVote: (userId, postId, vote) => {
-      return knex.raw("CALL CreatePostVote(?, ?, ?)", [userId, postId, vote]);
+      return db.raw("CALL CreatePostVote(?, ?, ?)", [userId, postId, vote]);
     },
     createCommentVote: (userId, commentId, vote) => {
-      return knex.raw("CALL CreateCommentVote(?, ?, ?)", [
+      return db.raw("CALL CreateCommentVote(?, ?, ?)", [
         userId,
         commentId,
         vote,

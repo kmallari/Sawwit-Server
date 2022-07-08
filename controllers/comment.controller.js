@@ -1,5 +1,13 @@
 const nanoid = require("nanoid");
 
+const addComments = (originalComments, commentsToAdd, parentId) => {
+  const parentIndex = originalComments.findIndex(
+    (comment) => comment.id === parentId
+  );
+  originalComments.splice(parentIndex + 1, 0, ...commentsToAdd);
+  return originalComments;
+};
+
 module.exports = (commentsRepository) => {
   const commentController = {
     getAllComments: (req, res) => {
@@ -83,7 +91,7 @@ module.exports = (commentsRepository) => {
         const postId = req.params.postId;
         const { userId, username, comment, parentId } = req.body;
         const parentLevel = parseInt(req.query.parentLevel);
-        console.log("PARENT", typeof parentLevel);
+        // console.log("PARENT", typeof parentLevel);
         const id = nanoid.nanoid();
 
         if (userId && username && comment && parentId) {
@@ -96,7 +104,7 @@ module.exports = (commentsRepository) => {
                   .then((userData) => {
                     if (userData[0][0].length > 0) {
                       // console.log(userId, username, comment, parentId);
-                      console.log(userData[0][0][0]);
+                      // console.log(userData[0][0][0]);
                       commentsRepository
                         .createComment(
                           id,
@@ -110,19 +118,29 @@ module.exports = (commentsRepository) => {
                           parentLevel
                         )
                         .then(() => {
-                          resolve({
-                            id: id,
-                            userId: userId,
-                            username: username,
-                            postId: postId,
-                            parentId: parentId,
-                            body: comment,
-                            createdAt: Date.now(),
-                            level: parentLevel + 1,
-                            upvotes: 0,
-                            downvotes: 0,
-                            childrenCount: 0,
-                          });
+                          commentsRepository
+                            .clearCachedCommentsForPost(postId)
+                            .then(() => {
+                              resolve({
+                                id: id,
+                                userId: userId,
+                                username: username,
+                                postId: postId,
+                                parentId: parentId,
+                                body: comment,
+                                createdAt: Date.now(),
+                                level: parentLevel + 1,
+                                upvotes: 0,
+                                downvotes: 0,
+                                childrenCount: 0,
+                              });
+                            })
+                            .catch((err) => {
+                              reject({
+                                status: 500,
+                                error: err,
+                              });
+                            });
                         })
                         .catch((err) => {
                           console.error(err);
@@ -210,19 +228,94 @@ module.exports = (commentsRepository) => {
         });
     },
 
+    getParentCommentsFromPost: (req, res) => {
+      new Promise((resolve, reject) => {
+        const { postId } = req.params;
+
+        commentsRepository
+          .getNextComments(postId)
+          .then((data) => {
+            let comments = data[0][0];
+
+            commentsRepository
+              .getCommentsFromCache(postId)
+              .then((cachedComments) => {
+                // console.log("DATA!!!!", cachedComments);
+                if (cachedComments) {
+                  let parsedComments = JSON.parse(cachedComments);
+                  for (let key of Object.keys(parsedComments)) {
+                    comments = addComments(comments, parsedComments[key], key);
+                  }
+                  // console.log("PARSED!", parsedComments);
+                  resolve(comments);
+                } 
+                
+                // hindi na kailangan if hset gagmitin
+                else {
+                  const parentCommentsIds = {};
+                  for (let comment of comments) {
+                    parentCommentsIds[comment.id] = [];
+                  }
+
+                  // console.log("PARENT", parentCommentsIds);
+                  commentsRepository.setParentCommentsToCache(
+                    postId,
+                    parentCommentsIds //mag-hset sa cache kapag nagget-next comments
+                    // transfer sa getNextComments
+                  );
+
+                  // console.log("COMENTS", comments);
+                  resolve(comments);
+                }
+              });
+          })
+          .catch((err) => {
+            reject({
+              status: 500,
+              error: err,
+            });
+          });
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
     getNextComments: (req, res) => {
       new Promise((resolve, reject) => {
+        const { postId } = req.params;
         const { parentId } = req.query;
-        console.log("HELLO", parentId);
-
         if (parentId) {
           commentsRepository
             .getNextComments(parentId)
             .then((data) => {
-              resolve(data[0][0]);
+              const comments = data[0][0];
+              commentsRepository
+                .getCommentsFromCache(postId) // palitan ng setParentCommentsToCache, then ipass yung parentId na currently na ginagamit tsaka yung children array
+                .then((cachedComments) => {
+                  // console.log("cached", cachedComments);
+                  const parsedComments = JSON.parse(cachedComments);
+                  // console.log("parsed", parsedComments);
+
+                  // if hset gagamitin, ilalagay na lang yung parentId as a key
+                  // hset(postid, parentId, stringified array ng child comments)
+                  
+                  // if hset, kailangan magcall ng other command (expire) para irefresh yung expiration
+
+                  // ipipeline yung hset and expire commands
+
+                  parsedComments[parentId] = [...comments];
+                  commentsRepository.setParentCommentsToCache(
+                    postId,
+                    parsedComments
+                  );
+                  resolve(comments);
+                });
             })
             .catch((err) => {
-              console.error(err);
               reject({
                 status: 500,
                 error: err,

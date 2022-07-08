@@ -1,4 +1,5 @@
 const nanoid = require("nanoid");
+const { upload } = require("./storage.js");
 
 const isValidTitle = (title) => {
   return title.length > 0 && title.length <= 300;
@@ -141,10 +142,10 @@ module.exports = (postsRepository) => {
                   });
               }
             })
-            .catch(() => {
+            .catch((err) => {
               reject({
                 status: 500,
-                error: { message: "Internal server error . (SQL)" },
+                error: err,
               });
             });
         } else {
@@ -260,6 +261,17 @@ module.exports = (postsRepository) => {
         .catch((error) => {
           res.status(error.status).json({ error: error.error });
         });
+    },
+
+    testMedia: (req, res) => {
+      console.log(req.files)
+      if (req.file) {
+        const pathName = req.file.path;
+        upload.single();
+        res.json({
+          path: pathName,
+        });
+      }
     },
 
     putPost: (req, res) => {
@@ -394,9 +406,9 @@ module.exports = (postsRepository) => {
                       } else {
                         postsRepository
                           .checkIfUserHasVoted(userId, postId)
-                          .then((data) => {
-                            console.log("DATA!", data[0][0]);
-                            if (data[0][0].length === 0) {
+                          .then((voteData) => {
+                            console.log("DATA!", voteData[0][0]);
+                            if (voteData[0][0].length === 0) {
                               postsRepository
                                 .votePost(userId, postId, vote)
                                 .then(() => {
@@ -406,55 +418,54 @@ module.exports = (postsRepository) => {
                                     vote: vote,
                                   });
                                 })
-                                .catch(() => {
+                                .catch((err) => {
                                   reject({
                                     status: 500,
-                                    error: {
-                                      message: "Internal server error. (SQL1)",
-                                    },
+                                    error: err,
                                   });
                                 });
                             } else {
-                              if (data[0][0][0].vote === vote) {
-                                postsRepository
-                                  .deleteVote(userId, postId)
-                                  .then(() => {
+                              postsRepository
+                                .deleteVote(userId, postId, vote)
+                                .then(() => {
+                                  if (voteData[0][0][0].vote === vote) {
+                                    // promise all
+                                    // kapag existing, check kung anong vote
+                                    // if upvote, then call yung decrement upvote sa post table
+                                    // if downvote, then call yung decreent downvote sa post table
                                     resolve({
                                       id: postId,
                                       userId: userId,
                                       vote: vote,
                                     });
-                                  })
-                                  .catch(() => {
-                                    reject({
-                                      status: 500,
-                                      error: {
-                                        message:
-                                          "Internal server error. (SQL5)",
-                                      },
-                                    });
+                                  } else {
+                                    // promise all
+                                    // kapag upvote to downvote, then call yung increment downvote, decrement upvote sa post table
+                                    // kapag downvote to upvote, then call increment upvote, decrement downvote
+                                    console.log("runs?");
+                                    postsRepository
+                                      .votePost(userId, postId, vote)
+                                      .then(() => {
+                                        resolve({
+                                          id: postId,
+                                          userId: userId,
+                                          vote: vote,
+                                        });
+                                      })
+                                      .catch((err) => {
+                                        reject({
+                                          status: 500,
+                                          error: err,
+                                        });
+                                      });
+                                  }
+                                })
+                                .catch((err) => {
+                                  reject({
+                                    status: 500,
+                                    error: err,
                                   });
-                              } else {
-                                postsRepository
-                                  .updateVote(userId, postId, vote)
-                                  .then(() => {
-                                    resolve({
-                                      id: postId,
-                                      userId: userId,
-                                      vote: vote,
-                                    });
-                                  })
-                                  .catch((err) => {
-                                    console.error(err);
-                                    reject({
-                                      status: 500,
-                                      error: {
-                                        message:
-                                          "Internal server error. (SQL6)",
-                                      },
-                                    });
-                                  });
-                              }
+                                });
                             }
                           })
                           .catch((err) => {
@@ -462,7 +473,7 @@ module.exports = (postsRepository) => {
                             reject({
                               status: 500,
                               error: {
-                                message: "Internal server error. (SQL2)",
+                                message: err,
                               },
                             });
                           });

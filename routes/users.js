@@ -1,9 +1,9 @@
 var express = require("express");
 var router = express.Router();
 
-const knex = require("../repositories/db.config.js"); // change variable name to db
+const db = require("../repositories/db.config.js"); // change variable name to db
 
-const usersRepository = require("../repositories/users.repository.js")(knex);
+const usersRepository = require("../repositories/users.repository.js")(db);
 
 const userController = require("../controllers/user.controller.js")(
   usersRepository

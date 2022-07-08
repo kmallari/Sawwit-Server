@@ -1,10 +1,10 @@
-module.exports = (knex) => {
+module.exports = (db) => {
   const postsRepository = {
     getAllPosts: () => {
-      return knex.raw("CALL GetAllPosts()");
+      return db.raw("CALL GetAllPosts()");
     },
     getAllPostsFromSubreddit: (subredditName) => {
-      return knex.raw("CALL GetPostsFromSubreddit(?)", [subredditName]);
+      return db.raw("CALL GetPostsFromSubreddit(?)", [subredditName]);
     },
     createPost: (
       id,
@@ -16,7 +16,7 @@ module.exports = (knex) => {
       subredditIcon,
       createdAt
     ) => {
-      return knex.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?, ?)", [
+      return db.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
@@ -28,40 +28,40 @@ module.exports = (knex) => {
       ]);
     },
     checkIfPostExists: (postId) => {
-      return knex.raw("CALL CheckIfPostExists(?)", [postId]);
+      return db.raw("CALL CheckIfPostExists(?)", [postId]);
     },
     getOnePost: (postId) => {
-      return knex.raw("CALL GetOnePost(?)", [postId]);
+      return db.raw("CALL GetOnePost(?)", [postId]);
     },
     getUserPosts: (userId) => {
-      return knex.raw("CALL GetUserPosts(?)", [userId]);
+      return db.raw("CALL GetUserPosts(?)", [userId]);
     },
     doesPostExist: (postId) => {
-      return knex.raw("CALL DoesPostExist(?)", [postId]);
+      return db.raw("CALL DoesPostExist(?)", [postId]);
     },
     deletePost: (postId) => {
-      return knex.raw("CALL DeletePost(?)", [postId]);
+      return db.raw("CALL DeletePost(?)", [postId]);
     },
     updatePostBody: (postId, body) => {
-      return knex.raw("CALL UpdatePostBody(?, ?)", [postId, body]);
+      return db.raw("CALL UpdatePostBody(?, ?)", [postId, body]);
     },
     checkIfSubredditExists: (name) => {
-      return knex.raw("CALL CheckIfSubredditExists(?)", [name]);
+      return db.raw("CALL CheckIfSubredditExists(?)", [name]);
     },
     checkIfUserExists: (id) => {
-      return knex.raw("CALL CheckIfIDExists(?)", [id]);
+      return db.raw("CALL CheckIfIDExists(?)", [id]);
     },
     checkIfUserHasVoted: (userId, postId) => {
-      return knex.raw("CALL CheckIfUserVotedPost(?, ?)", [userId, postId]);
+      return db.raw("CALL CheckIfUserVotedPost(?, ?)", [userId, postId]);
     },
     votePost: (userId, postId, vote) => {
-      return knex.raw("CALL CreatePostVote(?, ?, ?)", [userId, postId, vote]);
+      return db.raw("CALL CreatePostVote(?, ?, ?)", [userId, postId, vote]);
     },
-    deleteVote: (userId, postId) => {
-      return knex.raw("CALL DeletePostVote(?, ?)", [userId, postId]);
+    deleteVote: (userId, postId, vote) => {
+      return db.raw("CALL DeletePostVote(?, ?, ?)", [userId, postId, vote]);
     },
     updateVote: (userId, postId, vote) => {
-      return knex.raw("CALL UpdatePostVote(?, ?, ?)", [userId, postId, vote]);
+      return db.raw("CALL UpdatePostVote(?, ?, ?)", [userId, postId, vote]);
     },
   };
   return postsRepository;

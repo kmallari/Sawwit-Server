@@ -617,6 +617,154 @@ WHERE
 
 END;
 
+-- STORED PROCEDURES FOR POST VOTES
+CREATE PROCEDURE CheckIfUserVotedPost(p_userId VARCHAR(21), p_postId VARCHAR(21)) BEGIN
+SELECT
+  vote
+FROM
+  postVotes
+WHERE
+  userId = p_userId
+  AND postId = p_postId;
+
+END;
+
+CREATE PROCEDURE CreatePostVote (
+  p_userId VARCHAR(21),
+  p_postId VARCHAR(21),
+  p_vote TINYINT
+) BEGIN
+INSERT INTO
+  postVotes (userId, postId, vote)
+VALUES
+  (p_userId, p_postId, p_vote);
+
+UPDATE
+  posts
+SET
+  upvotes = upvotes + p_vote
+WHERE
+  id = p_postId
+  AND p_vote = 1;
+
+UPDATE
+  posts
+SET
+  downvotes = downvotes - p_vote
+WHERE
+  id = p_postId
+  AND p_vote = -1;
+
+END;
+
+CREATE PROCEDURE DecrementPostUpvote (p_postId VARCHAR(21)) BEGIN
+UPDATE
+  posts
+SET
+  upvotes = upvotes - 1
+WHERE
+  id = p_postId;
+
+END;
+
+CREATE PROCEDURE DecrementPostDownvote (p_postId VARCHAR(21)) BEGIN
+UPDATE
+  posts
+SET
+  downvotes = downvotes - 1
+WHERE
+  id = p_postId;
+
+END;
+
+CREATE PROCEDURE DeletePostVote (
+  p_userId VARCHAR(21),
+  p_postId VARCHAR(21)
+) BEGIN
+DELETE FROM
+  postVotes
+WHERE
+  userId = p_userId
+  AND postId = p_postId;
+
+END;
+
+-- STORED PROCEDURES FOR COMMENT VOTES
+CREATE PROCEDURE CheckIfUserVotedComment (p_userId VARCHAR(21), p_commentId VARCHAR(21)) BEGIN
+SELECT
+  vote
+FROM
+  commentVotes
+WHERE
+  userId = p_userId
+  AND commentId = p_commentId;
+
+END;
+
+CREATE PROCEDURE CreateCommentVote (
+  p_userId VARCHAR(21),
+  p_commentId VARCHAR(21),
+  p_vote INT
+) BEGIN
+INSERT INTO
+  commentVotes (userId, commentId, vote)
+VALUES
+  (
+    p_userId,
+    p_commentId,
+    p_vote
+  );
+
+UPDATE
+  comments
+SET
+  upvotes = upvotes + p_vote
+WHERE
+  id = p_commentId
+  AND p_vote = 1;
+
+UPDATE
+  comments
+SET
+  downvotes = downvotes - p_vote
+WHERE
+  id = p_commentId
+  AND p_vote = -1;
+
+END;
+
+CREATE PROCEDURE DecrementCommentUpvote (p_commentId VARCHAR(21)) BEGIN
+UPDATE
+  comments
+SET
+  upvotes = upvotes - 1
+WHERE
+  id = p_commentId;
+
+END;
+
+CREATE PROCEDURE DecrementCommentDownvote (p_commentId VARCHAR(21)) BEGIN
+UPDATE
+  comments
+SET
+  downvotes = downvotes - 1
+WHERE
+  id = p_commentId;
+
+END;
+
+CREATE PROCEDURE DeleteCommentVote (
+  p_userId VARCHAR(21),
+  p_commentId VARCHAR(21)
+) BEGIN
+DELETE FROM
+  commentVotes
+WHERE
+  userId = p_userId
+  AND commentId = p_commentId;
+
+END;
+
 -- STORED PROCEDURES FOR SUBSCRIPTIONS
 CREATE PROCEDURE GetUserSubscriptions(p_userId VARCHAR(21)) BEGIN
 SELECT
@@ -660,138 +808,5 @@ DELETE FROM
 WHERE
   userId = p_userId
   AND subredditId = p_subredditId;
-
-END;
-
--- STORED PROCEDURES FOR POST VOTES
-CREATE PROCEDURE CheckIfUserVotedPost(p_userId VARCHAR(21), p_postId VARCHAR(21)) BEGIN
-SELECT
-  vote
-FROM
-  postVotes
-WHERE
-  userId = p_userId
-  AND postId = p_postId;
-
-END;
-
--- PROBABLY CAN DELETE THIS, AS WELL AS THE GetCommentsVotes procedure
-CREATE PROCEDURE GetPostVotes (p_postId VARCHAR(21)) BEGIN
-SELECT
-  SUM (vote)
-FROM
-  postVotes
-WHERE
-  postId = p_postId;
-
-END;
-
-CREATE PROCEDURE CreatePostVote (
-  p_userId VARCHAR(21),
-  p_postId VARCHAR(21),
-  p_vote TINYINT
-) BEGIN
-INSERT INTO
-  postVotes (userId, postId, vote)
-VALUES
-  (p_userId, p_postId, p_vote);
-
-UPDATE
-  posts
-SET
-  upvotes = upvotes + p_vote
-WHERE
-  id = p_postId
-  AND p_vote = 1;
-
-UPDATE
-  posts
-SET
-  downvotes = downvotes - p_vote
-WHERE
-  id = p_postId
-  AND p_vote = -1;
-
-END;
-
-CREATE PROCEDURE UpdatePostVote (
-  p_userId VARCHAR(21),
-  p_postId VARCHAR(21),
-  p_vote TINYINT
-) BEGIN
-UPDATE
-  postVotes
-SET
-  vote = p_vote
-WHERE
-  userId = p_userId
-  AND postId = p_postId;
-
-END;
-
-CREATE PROCEDURE DeletePostVote (
-  p_userId VARCHAR(21),
-  p_postId VARCHAR(21),
-  p_vote TINYINT
-) BEGIN
-DELETE FROM
-  postVotes
-WHERE
-  userId = p_userId
-  AND postId = p_postId;
-
-UPDATE
-  posts
-SET
-  upvotes = upvotes - 1
-WHERE
-  id = p_postId
-  AND p_vote = 1;
-
-UPDATE
-  posts
-SET
-  downvotes = downvotes - 1
-WHERE
-  id = p_postId
-  AND p_vote = -1;
-
-END;
-
--- STORE PROCEDURES FOR COMMENT VOTES
-CREATE PROCEDURE CheckIfUserVotedComment (p_userId VARCHAR(21), p_commentId VARCHAR(21)) BEGIN
-SELECT
-  vote
-FROM
-  commentVotes
-WHERE
-  userId = p_userId
-  AND commentId = p_commentId;
-
-END;
-
-CREATE PROCEDURE GetCommentVotes (p_commentId VARCHAR(21)) BEGIN
-SELECT
-  SUM (vote)
-FROM
-  commentVotes
-WHERE
-  commentId = p_commentId;
-
-END;
-
-CREATE PROCEDURE CreateCommentVote (
-  p_userId VARCHAR(21),
-  p_commentId VARCHAR(21),
-  p_vote INT
-) BEGIN
-INSERT INTO
-  commentVotes (userId, commentId, vote)
-VALUES
-  (
-    p_userId,
-    p_commentId,
-    p_vote
-  );
 
 END;

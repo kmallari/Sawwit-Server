@@ -264,7 +264,7 @@ module.exports = (postsRepository) => {
     },
 
     testMedia: (req, res) => {
-      console.log(req.files)
+      console.log(req.files);
       if (req.file) {
         const pathName = req.file.path;
         upload.single();
@@ -383,7 +383,7 @@ module.exports = (postsRepository) => {
           if (vote > 1 || vote < -1) {
             reject({
               status: 400,
-              error: { message: "Invalid vote." },
+              error: { message: "Invalid vote value." },
             });
           } else {
             postsRepository
@@ -407,7 +407,6 @@ module.exports = (postsRepository) => {
                         postsRepository
                           .checkIfUserHasVoted(userId, postId)
                           .then((voteData) => {
-                            console.log("DATA!", voteData[0][0]);
                             if (voteData[0][0].length === 0) {
                               postsRepository
                                 .votePost(userId, postId, vote)
@@ -426,38 +425,100 @@ module.exports = (postsRepository) => {
                                 });
                             } else {
                               postsRepository
-                                .deleteVote(userId, postId, vote)
+                                .deleteVote(userId, postId)
                                 .then(() => {
                                   if (voteData[0][0][0].vote === vote) {
                                     // promise all
                                     // kapag existing, check kung anong vote
                                     // if upvote, then call yung decrement upvote sa post table
                                     // if downvote, then call yung decreent downvote sa post table
-                                    resolve({
-                                      id: postId,
-                                      userId: userId,
-                                      vote: vote,
-                                    });
+                                    if (vote === 1) {
+                                      postsRepository
+                                        .decrementPostUpvote(postId)
+                                        .then(() => {
+                                          console.log(5);
+                                          resolve({
+                                            id: postId,
+                                            userId: userId,
+                                            vote: vote,
+                                          });
+                                        })
+                                        .catch((err) => {
+                                          reject({
+                                            status: 500,
+                                            error: err,
+                                          });
+                                        });
+                                    } else if (vote === -1) {
+                                      postsRepository
+                                        .decrementPostDownvote(postId)
+                                        .then(() => {
+                                          console.log(6);
+                                          resolve({
+                                            id: postId,
+                                            userId: userId,
+                                            vote: vote,
+                                          });
+                                        })
+                                        .catch((err) => {
+                                          reject({
+                                            status: 500,
+                                            error: err,
+                                          });
+                                        });
+                                    }
                                   } else {
-                                    // promise all
-                                    // kapag upvote to downvote, then call yung increment downvote, decrement upvote sa post table
-                                    // kapag downvote to upvote, then call increment upvote, decrement downvote
-                                    console.log("runs?");
-                                    postsRepository
-                                      .votePost(userId, postId, vote)
-                                      .then(() => {
-                                        resolve({
-                                          id: postId,
-                                          userId: userId,
-                                          vote: vote,
+                                    if (voteData[0][0][0].vote === 1) {
+                                      postsRepository
+                                        .decrementPostUpvote(postId)
+                                        .then(() => {
+                                          console.log(1);
+                                          postsRepository
+                                            .votePost(userId, postId, vote)
+                                            .then(() => {
+                                              resolve({
+                                                id: postId,
+                                                userId: userId,
+                                                vote: vote,
+                                              });
+                                            })
+                                            .catch((err) => {
+                                              reject({
+                                                status: 500,
+                                                error: err,
+                                              });
+                                            });
+                                        })
+                                        .catch((err) => {
+                                          console.log(5);
+                                          reject(err);
                                         });
-                                      })
-                                      .catch((err) => {
-                                        reject({
-                                          status: 500,
-                                          error: err,
+                                    } else if (voteData[0][0][0].vote === -1) {
+                                      postsRepository
+                                        .decrementPostDownvote(postId)
+                                        .then(() => {
+                                          console.log(3);
+                                          postsRepository
+                                            .votePost(userId, postId, vote)
+                                            .then(() => {
+                                              resolve({
+                                                id: postId,
+                                                userId: userId,
+                                                vote: vote,
+                                              });
+                                            })
+                                            .catch((err) => {
+                                              reject({
+                                                status: 500,
+                                                error: err,
+                                              });
+                                            });
+                                        })
+                                        .catch((err) => {
+                                          console.log(7);
+                                          reject(err);
                                         });
-                                      });
+                                    }
                                   }
                                 })
                                 .catch((err) => {
@@ -480,7 +541,6 @@ module.exports = (postsRepository) => {
                       }
                     })
                     .catch((err) => {
-                      console.error("ERROR", err);
                       reject({
                         status: 500,
                         error: err,

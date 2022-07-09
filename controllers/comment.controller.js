@@ -104,7 +104,7 @@ module.exports = (commentsRepository) => {
                   .then((userData) => {
                     if (userData[0][0].length > 0) {
                       // console.log(userId, username, comment, parentId);
-                      // console.log(userData[0][0][0]);
+                      console.log("USER!", userData[0][0][0].profilePicture);
                       commentsRepository
                         .createComment(
                           id,
@@ -125,6 +125,8 @@ module.exports = (commentsRepository) => {
                                 id: id,
                                 userId: userId,
                                 username: username,
+                                userProfilePicture:
+                                  userData[0][0][0].profilePicture,
                                 postId: postId,
                                 parentId: parentId,
                                 body: comment,
@@ -240,33 +242,18 @@ module.exports = (commentsRepository) => {
             commentsRepository
               .getCommentsFromCache(postId)
               .then((cachedComments) => {
-                // console.log("DATA!!!!", cachedComments);
                 if (cachedComments) {
-                  let parsedComments = JSON.parse(cachedComments);
-                  for (let key of Object.keys(parsedComments)) {
-                    comments = addComments(comments, parsedComments[key], key);
+                  for (let comment of cachedComments) {
+                    comment = JSON.parse(comment);
+                    addComments(
+                      comments,
+                      comment.childrenComments,
+                      comment.parentId
+                    );
                   }
-                  // console.log("PARSED!", parsedComments);
-                  resolve(comments);
-                } 
-                
-                // hindi na kailangan if hset gagmitin
-                else {
-                  const parentCommentsIds = {};
-                  for (let comment of comments) {
-                    parentCommentsIds[comment.id] = [];
-                  }
-
-                  // console.log("PARENT", parentCommentsIds);
-                  commentsRepository.setParentCommentsToCache(
-                    postId,
-                    parentCommentsIds //mag-hset sa cache kapag nagget-next comments
-                    // transfer sa getNextComments
-                  );
-
-                  // console.log("COMENTS", comments);
-                  resolve(comments);
                 }
+
+                resolve(comments);
               });
           })
           .catch((err) => {
@@ -294,26 +281,17 @@ module.exports = (commentsRepository) => {
             .then((data) => {
               const comments = data[0][0];
               commentsRepository
-                .getCommentsFromCache(postId) // palitan ng setParentCommentsToCache, then ipass yung parentId na currently na ginagamit tsaka yung children array
-                .then((cachedComments) => {
-                  // console.log("cached", cachedComments);
-                  const parsedComments = JSON.parse(cachedComments);
-                  // console.log("parsed", parsedComments);
-
-                  // if hset gagamitin, ilalagay na lang yung parentId as a key
-                  // hset(postid, parentId, stringified array ng child comments)
-                  
-                  // if hset, kailangan magcall ng other command (expire) para irefresh yung expiration
-
-                  // ipipeline yung hset and expire commands
-
-                  parsedComments[parentId] = [...comments];
-                  commentsRepository.setParentCommentsToCache(
-                    postId,
-                    parsedComments
-                  );
-                  resolve(comments);
+                .setParentCommentsToCache(
+                  postId,
+                  comments[0].level,
+                  parentId,
+                  comments
+                )
+                .catch((err) => {
+                  reject({ status: 500, error: err });
                 });
+
+              resolve(comments);
             })
             .catch((err) => {
               reject({
@@ -409,6 +387,183 @@ module.exports = (commentsRepository) => {
           res.status(200).json({
             message: `Successfully deleted comment with the id of ${id} `,
           });
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    // broken af
+    voteComment: (req, res) => {
+      new Promise((resolve, reject) => {
+        const commentId = req.params.commentId;
+        const { userId, vote } = req.body;
+        if (commentId && userId && vote) {
+          if (vote > 1 || vote < -1) {
+            reject({
+              status: 400,
+              error: { message: "Invalid vote value." },
+            });
+          } else {
+            commentsRepository
+              .checkIfCommentExists(commentId)
+              .then((data) => {
+                if (data[0][0][0]["COUNT(id)"] === 0) {
+                  reject({
+                    status: 404,
+                    error: { message: "Comment not found." },
+                  });
+                } else {
+                  commentsRepository
+                    .checkIfUserExists(userId)
+                    .then((data) => {
+                      if (data[0][0].length === 0) {
+                        reject({
+                          status: 404,
+                          error: { message: "User not found." },
+                        });
+                      } else {
+                        commentsRepository
+                          .checkIfUserHasVoted(userId, commentId)
+                          .then((voteData) => {
+                            console.log(
+                              "🚀 ~ file: comment.controller.js ~ line 429 ~ .then ~ voteData",
+                              voteData[0][0]
+                            );
+                            if (voteData[0][0].length === 0) {
+                              commentsRepository
+                                .voteComment(userId, commentId, vote)
+                                .then(() => {
+                                  resolve({
+                                    message: `Successfully voted comment with id: ${commentId}`,
+                                    userId: userId,
+                                    vote: vote,
+                                  });
+                                })
+                                .catch((err) => {
+                                  reject({
+                                    status: 500,
+                                    error: err,
+                                  });
+                                });
+                            } else {
+                              commentsRepository
+                                .deleteVote(userId, commentId)
+                                .then(() => {
+                                  if (voteData[0][0][0].vote === vote) {
+                                    if (vote === 1) {
+                                      commentsRepository
+                                        .decrementCommentUpvote(commentId)
+                                        .then(() => {
+                                          resolve({
+                                            message: `Successfully removed upvote from comment with id: ${commentId}`,
+                                            userId: userId,
+                                            vote: vote,
+                                          });
+                                        })
+                                        .catch((err) => {
+                                          reject({ status: 500, error: err });
+                                        });
+                                    } else if (vote === -1) {
+                                      commentsRepository
+                                        .decrementCommentDownvote(commentId)
+                                        .then(() => {
+                                          resolve({
+                                            message: `Successfully removed downvote from comment with id: ${commentId}`,
+                                            userId: userId,
+                                            vote: vote,
+                                          });
+                                        })
+                                        .catch((err) => {
+                                          reject({ status: 500, error: err });
+                                        });
+                                    }
+                                  } else {
+                                    if (voteData[0][0][0].vote === 1) {
+                                      commentsRepository
+                                        .decrementCommentUpvote(commentId)
+                                        .then(() => {
+                                          commentsRepository
+                                            .voteComment(
+                                              userId,
+                                              commentId,
+                                              vote
+                                            )
+                                            .then(() => {
+                                              resolve({
+                                                message: `Successfully voted comment with id: ${commentId}`,
+                                                userId: userId,
+                                                vote: vote,
+                                              });
+                                            });
+                                        })
+                                        .catch((err) => {
+                                          reject({ status: 500, error: err });
+                                        });
+                                    } else if (voteData[0][0][0].vote === -1) {
+                                      commentsRepository
+                                        .decrementCommentDownvote(commentId)
+                                        .then(() => {
+                                          commentsRepository
+                                            .voteComment(
+                                              userId,
+                                              commentId,
+                                              vote
+                                            )
+                                            .then(() => {
+                                              resolve({
+                                                message: `Successfully voted comment with id: ${commentId}`,
+                                                userId: userId,
+                                                vote: vote,
+                                              });
+                                            })
+                                            .catch((err) => {
+                                              reject({
+                                                status: 500,
+                                                error: err,
+                                              });
+                                            });
+                                        })
+                                        .catch((err) => {
+                                          reject({ status: 500, error: err });
+                                        });
+                                    }
+                                  }
+                                })
+                                .catch((err) => {
+                                  reject({ status: 500, error: err });
+                                });
+                            }
+                          })
+                          .catch((err) => {
+                            reject({
+                              status: 500,
+                              error: err,
+                            });
+                          });
+                      }
+                    })
+                    .catch((err) => {
+                      reject({
+                        status: 500,
+                        error: err,
+                      });
+                    });
+                }
+              })
+              .catch((err) => {
+                reject({ status: 500, err: err });
+              });
+          }
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Missing required fields." },
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
         })
         .catch((error) => {
           res.status(error.status).json(error.error);

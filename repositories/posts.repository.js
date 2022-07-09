@@ -57,11 +57,14 @@ module.exports = (db) => {
     votePost: (userId, postId, vote) => {
       return db.raw("CALL CreatePostVote(?, ?, ?)", [userId, postId, vote]);
     },
-    deleteVote: (userId, postId, vote) => {
-      return db.raw("CALL DeletePostVote(?, ?, ?)", [userId, postId, vote]);
+    deleteVote: (userId, postId) => {
+      return db.raw("CALL DeletePostVote(?, ?)", [userId, postId]);
     },
-    updateVote: (userId, postId, vote) => {
-      return db.raw("CALL UpdatePostVote(?, ?, ?)", [userId, postId, vote]);
+    decrementPostUpvote: (postId) => {
+      return db.raw("CALL DecrementPostUpvote(?)", [postId]);
+    },
+    decrementPostDownvote: (postId) => {
+      return db.raw("CALL DecrementPostDownvote(?)", [postId]);
     },
   };
   return postsRepository;

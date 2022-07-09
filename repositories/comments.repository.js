@@ -50,12 +50,37 @@ module.exports = (db, redis) => {
     checkIfUserExists: (id) => {
       return db.raw("CALL CheckIfIDExists(?)", [id]);
     },
-    setParentCommentsToCache: (postId, parentIds) => {
-      // kung gumamit ng hset/hash hindi na kailangan mag setParentCommentsToCache sa una
-      return redis.set(postId, JSON.stringify(parentIds), 'ex', 5);
+    checkIfUserHasVoted: (userId, commentId) => {
+      return db.raw("CALL CheckIfUserVotedComment(?, ?)", [userId, commentId]);
+    },
+    voteComment: (userId, commentId, vote) => {
+      return db.raw("CALL CreateCommentVote(?, ?, ?)", [
+        userId,
+        commentId,
+        vote,
+      ]);
+    },
+    deleteVote: (userId, commentId) => {
+      return db.raw("CALL DeleteCommentVote(?, ?)", [userId, commentId]);
+    },
+    decrementCommentUpvote: (commentId) => {
+      return db.raw("CALL DecrementCommentUpvote(?)", [commentId]);
+    },
+    decrementCommentDownvote: (commentId) => {
+      return db.raw("CALL DecrementCommentDownvote(?)", [commentId]);
+    },
+    setParentCommentsToCache: (postId, level, parentId, comments) => {
+      const pipeline = redis.pipeline();
+      const commentsObj = { parentId: parentId, childrenComments: comments };
+      pipeline.zadd(postId, level, JSON.stringify(commentsObj));
+      pipeline.expire(postId, 30);
+      return pipeline.exec();
     },
     getCommentsFromCache: (postId) => {
-      return redis.get(postId);
+      return redis.zrange(postId, 0, -1);
+    },
+    setExpiration: (postId) => {
+      return redis.expire(postId, 60);
     },
     clearCachedCommentsForPost: (postId) => {
       return redis.del(postId);

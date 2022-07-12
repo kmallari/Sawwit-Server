@@ -166,6 +166,52 @@ module.exports = (postsRepository) => {
     getAllPostsUsingPagination: (req, res) => {
       new Promise((resolve, reject) => {
         let { page, itemsPerPage } = req.query;
+        console.log(
+          "🚀 ~ file: post.controller.js ~ line 170 ~ newPromise ~ page",
+          page
+        );
+        page = parseInt(page);
+        itemsPerPage = parseInt(itemsPerPage);
+
+        if (page && itemsPerPage) {
+          // page 1 -> 0 - 4
+          // page 2 -> 5 - 9
+
+          const start = (page - 1) * itemsPerPage;
+
+          postsRepository
+            .getAllPostsUsingPagination(start, itemsPerPage)
+            .then((data) => {
+              console.log(
+                "🚀 ~ file: post.controller.js ~ line 187 ~ .then ~ data[0][0]",
+                data[0][0]
+              );
+              resolve(data[0][0]);
+            })
+            .catch((err) => {
+              reject({
+                status: 500,
+                error: err,
+              });
+            });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing page or itemsPerPage." },
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    getSubredditPostsUsingPagination: (req, res) => {
+      new Promise((resolve, reject) => {
+        let { page, itemsPerPage } = req.query;
 
         page = parseInt(page);
         itemsPerPage = parseInt(itemsPerPage);
@@ -175,10 +221,55 @@ module.exports = (postsRepository) => {
           // page 2 -> 10 - 19
 
           const start = (page - 1) * itemsPerPage;
-          const end = page * itemsPerPage - 1;
+
+          const subredditName = req.params.subreddit;
 
           postsRepository
-            .getAllPostsUsingPagination(start, end)
+            .getSubredditPostsUsingPagination(
+              start,
+              itemsPerPage,
+              subredditName
+            )
+            .then((data) => {
+              resolve(data[0][0]);
+            })
+            .catch((err) => {
+              reject({
+                status: 500,
+                error: err,
+              });
+            });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing page or itemsPerPage." },
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    getUserPostsUsingPagination: (req, res) => {
+      new Promise((resolve, reject) => {
+        let { page, itemsPerPage } = req.query;
+
+        page = parseInt(page);
+        itemsPerPage = parseInt(itemsPerPage);
+
+        if (page && itemsPerPage) {
+          // page 1 -> 0 - 9
+          // page 2 -> 10 - 19
+
+          const start = (page - 1) * itemsPerPage;
+          const userId = req.params.userId;
+
+          postsRepository
+            .getUserPostsUsingPagination(start, itemsPerPage, userId)
             .then((data) => {
               resolve(data[0][0]);
             })

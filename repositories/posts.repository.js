@@ -88,20 +88,20 @@ module.exports = (db) => {
     getUserPosts: (userId) => {
       return db.raw("CALL GetUserPosts(?)", [userId]);
     },
-    getAllPostsUsingPagination: (start, end) => {
-      return db.raw("CALL GetAllPostsUsingPagination(?, ?)", [start, end]);
+    getAllPostsUsingPagination: (start, items) => {
+      return db.raw("CALL GetAllPostsUsingPagination(?, ?)", [start, items]);
     },
-    getSubredditPostsUsingPagination: (start, end, subredditName) => {
+    getSubredditPostsUsingPagination: (start, items, subredditName) => {
       return db.raw("CALL GetSubredditPostsUsingPagination(?, ?, ?)", [
         start,
-        end,
+        items,
         subredditName,
       ]);
     },
-    getUserPostsUsingPagination: (start, end, userId) => {
+    getUserPostsUsingPagination: (start, items, userId) => {
       return db.raw("CALL GetUserPostsUsingPagination(?, ?, ?)", [
         start,
-        end,
+        items,
         userId,
       ]);
     },

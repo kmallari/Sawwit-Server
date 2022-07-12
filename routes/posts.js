@@ -20,7 +20,12 @@ const commentController = require("../controllers/comment.controller.js")(
 router.get("/", postController.getAllPosts);
 router.get("/pagination", postController.getAllPostsUsingPagination);
 router.get("/subreddit/:subreddit", postController.getPostsFromSubreddit);
+router.get(
+  "/subreddit/:subreddit/pagination",
+  postController.getSubredditPostsUsingPagination
+);
 router.get("/user/:userId", postController.getUserPosts);
+router.get("/user/:userId/pagination", postController.getUserPostsUsingPagination);
 router.post("/submit", postUpload.single("imgFile"), postController.createPost);
 router.get("/:postId", postController.getOnePost);
 router.post("/:postId", postController.votePost);

@@ -311,7 +311,7 @@ ORDER BY
 
 END;
 
-CREATE PROCEDURE GetAllPostsUsingPagination(p_start INT, p_end INT) BEGIN
+CREATE PROCEDURE GetAllPostsUsingPagination(p_start INT, p_items INT) BEGIN
 SELECT
   *
 FROM
@@ -319,11 +319,11 @@ FROM
 ORDER BY
   createdAt DESC
 LIMIT
-  p_start, p_end;
+  p_start, p_items;
 
 END;
 
-CREATE PROCEDURE GetSubredditPostsUsingPagination(p_start INT, p_end INT, p_name VARCHAR(20)) BEGIN
+CREATE PROCEDURE GetSubredditPostsUsingPagination(p_start INT, p_items INT, p_name VARCHAR(20)) BEGIN
 SELECT
   *
 FROM
@@ -333,11 +333,11 @@ WHERE
 ORDER BY
   createdAt DESC
 LIMIT
-  p_start, p_end;
+  p_start, p_items;
 
 END;
 
-CREATE PROCEDURE GetUserPostsUsingPagination(p_start INT, p_end INT, p_userId VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetUserPostsUsingPagination(p_start INT, p_items INT, p_userId VARCHAR(21)) BEGIN
 SELECT
   *
 FROM
@@ -347,7 +347,7 @@ WHERE
 ORDER BY
   createdAt DESC
 LIMIT
-  p_start, p_end;
+  p_start, p_items;
 
 END;
 

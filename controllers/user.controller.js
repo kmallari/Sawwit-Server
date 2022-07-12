@@ -175,7 +175,7 @@ module.exports = (usersRepository) => {
             console.log("USER", user);
             bcrypt.compare(password, user.PASSWORD, (err, res) => {
               if (res) {
-                delete user.password;
+                delete user.PASSWORD;
                 const token = jwt.sign({ data: user }, "secret");
                 resolve({ data: user, token: token });
               } else {
@@ -203,7 +203,7 @@ module.exports = (usersRepository) => {
             console.log(user);
             bcrypt.compare(password, user.PASSWORD, (err, res) => {
               if (res) {
-                delete user.password;
+                delete user.PASSWORD;
                 const token = jwt.sign({ data: user }, "secret");
                 resolve({ data: user, token: token });
               } else {

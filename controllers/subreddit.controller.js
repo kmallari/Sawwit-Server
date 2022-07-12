@@ -1,3 +1,5 @@
+const { subredditUpload } = require("./storage");
+
 const isValidSubreddit = (subreddit) => {
   // subreddit is 4-20 characters long
   // no _ at the beginning and end
@@ -36,6 +38,38 @@ module.exports = (subredditsRepository) => {
               error: err,
             });
           });
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    getRecentlyCreatedSubreddits: (req, res) => {
+      new Promise((resolve, reject) => {
+        const count = req.query.count;
+        if (count) {
+          subredditsRepository
+            .getRecentlyCreatedSubreddits(count)
+            .then((data) => {
+              if (data[0][0].length > 0) {
+                resolve(data[0][0]);
+              } else {
+                reject({
+                  status: 404,
+                  error: { message: "No subreddits found." },
+                });
+              }
+            })
+            .catch((err) => {
+              reject({
+                status: 500,
+                error: err,
+              });
+            });
+        }
       })
         .then((data) => {
           res.status(200).json(data);
@@ -108,11 +142,10 @@ module.exports = (subredditsRepository) => {
                       })
                       .catch((err) => {
                         console.error(err);
-                        reject(
-                          res
-                            .status(500)
-                            .json({ error: "Internal server error. (SQL1)" })
-                        );
+                        reject({
+                          status: 500,
+                          error: err,
+                        });
                       });
                   } else {
                     reject(
@@ -151,11 +184,14 @@ module.exports = (subredditsRepository) => {
     },
 
     // TO DO: ADD FEATURE TO BE ABLE TO UPDATE SUBREDDIT ICON
-    putSubreddit: (req, res) => {
+    updateSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
-        const { subreddit, description } = req.body;
-        const subredditId = req.params.subreddit;
-        if (description) {
+        const { description } = req.body;
+        const subreddit = req.params.subreddit;
+        const icon = req.file;
+        console.log(icon);
+
+        if (description || icon) {
           // BROKEN
           // CAN UPDATE DESCRIPTION BUT SERVER RESPONSES WITH ERROR 500 (SECOND ONE)
           subredditsRepository
@@ -167,23 +203,70 @@ module.exports = (subredditsRepository) => {
                   error: { message: "Subreddit not found." },
                 });
               } else {
-                subredditsRepository
-                  .updateSubredditDescription(subredditId, description)
-                  .then(() => {
-                    resolve({
-                      subreddit: subredditId,
-                      description: description,
-                    });
-                  })
-                  .catch((err) => {
-                    reject({
-                      status: 500,
-                      error: err,
-                    });
+                let changeDescription;
+                if (description && isValidDescription(description)) {
+                  changeDescription = new Promise((resolve, reject) => {
+                    subredditsRepository
+                      .updateSubredditDescription(subreddit, description)
+                      .then(() => {
+                        resolve("description");
+                      })
+                      .catch((err) => {
+                        reject({
+                          status: 500,
+                          error: err,
+                        });
+                      });
                   });
+                }
+
+                let changeIcon;
+                if (icon) {
+                  changeIcon = new Promise((resolve, reject) => {
+                    const imagePath =
+                      "http://localhost:8080/uploads/subreddits/" +
+                      icon.filename;
+
+                    subredditUpload.single();
+
+                    subredditsRepository
+                      .updateSubredditIcon(subreddit, imagePath)
+                      .then(() => {
+                        console.log("updated icon");
+                        resolve("icon");
+                      })
+                      .catch((err) => {
+                        reject({
+                          status: 500,
+                          error: err,
+                        });
+                      });
+                  });
+                }
+
+                Promise.all([changeDescription, changeIcon]).then((updates) => {
+                  if (updates[0] && updates[1]) {
+                    resolve({
+                      name: subreddit,
+                      icon: icon,
+                      description: description,
+                      message: `Subreddit's ${updates[0]} and ${updates[1]} are updated successfully.`,
+                    });
+                  } else {
+                    resolve({
+                      name: subreddit,
+                      icon: icon,
+                      description: description,
+                      message: `Subreddit's ${
+                        updates[0] ? updates[0] : updates[1]
+                      } is updated successfully.`,
+                    });
+                  }
+                });
               }
             })
             .catch((err) => {
+              console.error(err);
               reject({
                 status: 500,
                 error: err,
@@ -192,7 +275,7 @@ module.exports = (subredditsRepository) => {
         } else {
           reject({
             status: 404,
-            error: { message: "Missing description." },
+            error: { message: "Missing parameters." },
           });
         }
       })

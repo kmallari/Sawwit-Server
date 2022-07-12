@@ -23,8 +23,14 @@ module.exports = (db) => {
         description,
       ]);
     },
+    updateSubredditIcon: (name, icon) => {
+      return db.raw("CALL UpdateSubredditIcon(?, ?)", [name, icon]);
+    },
     searchSubreddit: (name) => {
       return db.raw("CALL SearchSubreddit(?)", [name]);
+    },
+    getRecentlyCreatedSubreddits: (count) => {
+      return db.raw("CALL GetRecentlyCreatedSubreddits(?)", [count]);
     },
   };
   return subredditsRepository;

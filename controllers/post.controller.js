@@ -163,12 +163,60 @@ module.exports = (postsRepository) => {
         });
     },
 
-    postPost: (req, res) => {
+    getAllPostsUsingPagination: (req, res) => {
       new Promise((resolve, reject) => {
-        const { title, body, userId, username, subreddit } = req.body;
+        let { page, itemsPerPage } = req.query;
 
-        // no need to include body in if statement since body is optional
-        if (title && userId && username && subreddit) {
+        page = parseInt(page);
+        itemsPerPage = parseInt(itemsPerPage);
+
+        if (page && itemsPerPage) {
+          // page 1 -> 0 - 9
+          // page 2 -> 10 - 19
+
+          const start = (page - 1) * itemsPerPage;
+          const end = page * itemsPerPage - 1;
+
+          postsRepository
+            .getAllPostsUsingPagination(start, end)
+            .then((data) => {
+              resolve(data[0][0]);
+            })
+            .catch((err) => {
+              reject({
+                status: 500,
+                error: err,
+              });
+            });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing page or itemsPerPage." },
+          });
+        }
+      })
+        .then((data) => {
+          res.status(200).json(data);
+        })
+        .catch((error) => {
+          res.status(error.status).json(error.error);
+        });
+    },
+
+    createPost: (req, res) => {
+      new Promise((resolve, reject) => {
+        let { title, body, url, userId, username, subreddit, type } = req.body;
+        if (body === undefined) body = "";
+        type = parseInt(type);
+
+        // types:
+        // 1 - text
+        // 2 - image
+        // 3 - url
+
+        const image = req.file;
+
+        if (title && userId && username && subreddit && type) {
           if (isValidTitle(title)) {
             if (isValidPostBody(body)) {
               postsRepository
@@ -191,34 +239,127 @@ module.exports = (postsRepository) => {
                           });
                         } else {
                           const id = nanoid.nanoid();
-                          postsRepository
-                            .createPost(
-                              id,
-                              userId,
-                              username,
-                              title,
-                              body,
-                              subreddit,
-                              subredditData[0][0][0].icon,
-                              Date.now()
-                            )
-                            .then(() => {
-                              resolve({
-                                id: id,
-                                userId: userId,
-                                username: username,
-                                title: title,
-                                body: body,
-                                subreddit: subreddit,
-                                subredditIcon: subredditData[0][0][0].icon,
+
+                          if (type === 1) {
+                            postsRepository
+                              .createTextPost(
+                                id,
+                                userId,
+                                username,
+                                title,
+                                body,
+                                subreddit,
+                                subredditData[0][0][0].icon,
+                                Date.now()
+                              )
+                              .then(() => {
+                                resolve({
+                                  id: id,
+                                  userId: userId,
+                                  username: username,
+                                  title: title,
+                                  body: body,
+                                  subreddit: subreddit,
+                                  subredditIcon: subredditData[0][0][0].icon,
+                                });
+                              })
+                              .catch((err) => {
+                                reject({
+                                  status: 500,
+                                  error: err,
+                                });
                               });
-                            })
-                            .catch((err) => {
+                          } else if (type === 2) {
+                            if (image) {
+                              // testMedia: (req, res) => {
+                              //   console.log("?", req.file);
+                              //   if (req.file) {
+                              //     const imagePath = req.file.path;
+                              //     upload.single();
+                              //     res.json({
+                              //       path: imagePath,
+                              //     });
+                              //   }
+                              // },
+
+                              const imagePath =
+                                "http://localhost:8080/uploads/posts/" +
+                                image.filename;
+
+                              upload.single();
+
+                              postsRepository
+                                .createImagePost(
+                                  id,
+                                  userId,
+                                  username,
+                                  title,
+                                  imagePath,
+                                  subreddit,
+                                  subredditData[0][0][0].icon,
+                                  Date.now()
+                                )
+                                .then(() => {
+                                  resolve({
+                                    id: id,
+                                    userId: userId,
+                                    username: username,
+                                    title: title,
+                                    image: imagePath,
+                                    subreddit: subreddit,
+                                    subredditIcon: subredditData[0][0][0].icon,
+                                  });
+                                })
+                                .catch((err) => {
+                                  console.error(err);
+                                  reject({
+                                    status: 500,
+                                    error: err,
+                                  });
+                                });
+                            } else {
                               reject({
-                                status: 500,
-                                error: err,
+                                status: 400,
+                                error: { message: "Missing image." },
                               });
-                            });
+                            }
+                          } else if (type === 3) {
+                            if (url) {
+                              postsRepository
+                                .createUrlPost(
+                                  id,
+                                  userId,
+                                  username,
+                                  title,
+                                  url,
+                                  subreddit,
+                                  subredditData[0][0][0].icon,
+                                  Date.now()
+                                )
+                                .then(() => {
+                                  resolve({
+                                    id: id,
+                                    userId: userId,
+                                    username: username,
+                                    title: title,
+                                    url: url,
+                                    subreddit: subreddit,
+                                    subredditIcon: subredditData[0][0][0].icon,
+                                  });
+                                })
+                                .catch((err) => {
+                                  reject({
+                                    status: 500,
+                                    error: err,
+                                  });
+                                });
+                            } else {
+                              reject({
+                                status: 400,
+                                error: { message: "Missing url." },
+                              });
+                            }
+                          }
                         }
                       })
                       .catch((err) => {
@@ -264,12 +405,12 @@ module.exports = (postsRepository) => {
     },
 
     testMedia: (req, res) => {
-      console.log(req.files);
+      console.log("?", req.file);
       if (req.file) {
-        const pathName = req.file.path;
+        const imagePath = req.file.path;
         upload.single();
         res.json({
-          path: pathName,
+          path: imagePath,
         });
       }
     },

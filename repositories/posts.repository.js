@@ -1,12 +1,6 @@
 module.exports = (db) => {
   const postsRepository = {
-    getAllPosts: () => {
-      return db.raw("CALL GetAllPosts()");
-    },
-    getAllPostsFromSubreddit: (subredditName) => {
-      return db.raw("CALL GetPostsFromSubreddit(?)", [subredditName]);
-    },
-    createPost: (
+    createTextPost: (
       id,
       userId,
       username,
@@ -16,12 +10,64 @@ module.exports = (db) => {
       subredditIcon,
       createdAt
     ) => {
-      return db.raw("CALL createPost(?, ?, ?, ?, ?, ?, ?, ?)", [
+      return db.raw("CALL CreateTextPost(?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
         title,
         body,
+        subredditName,
+        subredditIcon,
+        createdAt,
+      ]);
+    },
+    createImagePost: (
+      id,
+      userId,
+      username,
+      title,
+      imagePath,
+      subredditName,
+      subredditIcon,
+      createdAt
+    ) => {
+      console.log(
+        id,
+        userId,
+        username,
+        title,
+        imagePath,
+        subredditName,
+        subredditIcon,
+        createdAt
+      );
+      return db.raw("CALL CreateImagePost(?, ?, ?, ?, ?, ?, ?, ?)", [
+        id,
+        userId,
+        username,
+        title,
+        imagePath,
+        subredditName,
+        subredditIcon,
+        createdAt,
+      ]);
+    },
+    createURLPost: (
+      id,
+      userId,
+      username,
+      title,
+      url,
+      subredditName,
+      subredditIcon,
+      createdAt
+    ) => {
+      return db.raw("CALL CreateURLPost(?, ?, ?, ?, ?, ?, ?, ?)", [
+        id,
+        userId,
+        username,
+        title,
+        url,
         subredditName,
         subredditIcon,
         createdAt,
@@ -33,8 +79,31 @@ module.exports = (db) => {
     getOnePost: (postId) => {
       return db.raw("CALL GetOnePost(?)", [postId]);
     },
+    getAllPosts: () => {
+      return db.raw("CALL GetAllPosts()");
+    },
+    getAllPostsFromSubreddit: (subredditName) => {
+      return db.raw("CALL GetPostsFromSubreddit(?)", [subredditName]);
+    },
     getUserPosts: (userId) => {
       return db.raw("CALL GetUserPosts(?)", [userId]);
+    },
+    getAllPostsUsingPagination: (start, end) => {
+      return db.raw("CALL GetAllPostsUsingPagination(?, ?)", [start, end]);
+    },
+    getSubredditPostsUsingPagination: (start, end, subredditName) => {
+      return db.raw("CALL GetSubredditPostsUsingPagination(?, ?, ?)", [
+        start,
+        end,
+        subredditName,
+      ]);
+    },
+    getUserPostsUsingPagination: (start, end, userId) => {
+      return db.raw("CALL GetUserPostsUsingPagination(?, ?, ?)", [
+        start,
+        end,
+        userId,
+      ]);
     },
     doesPostExist: (postId) => {
       return db.raw("CALL DoesPostExist(?)", [postId]);

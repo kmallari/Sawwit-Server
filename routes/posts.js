@@ -1,6 +1,6 @@
 var express = require("express");
 var router = express.Router();
-const { upload } = require("../controllers/storage");
+const { postUpload } = require("../controllers/storage");
 const db = require("../repositories/db.config.js");
 const redis = require("../repositories/redis.config");
 
@@ -18,12 +18,10 @@ const commentController = require("../controllers/comment.controller.js")(
 );
 
 router.get("/", postController.getAllPosts);
-// !! REFACTOR TO IMPLEMENT IN POST POST
-router.post("/media", upload.single("imgfile"), postController.testMedia);
-//
+router.get("/pagination", postController.getAllPostsUsingPagination);
 router.get("/subreddit/:subreddit", postController.getPostsFromSubreddit);
 router.get("/user/:userId", postController.getUserPosts);
-router.post("/submit", postController.postPost);
+router.post("/submit", postUpload.single("imgFile"), postController.createPost);
 router.get("/:postId", postController.getOnePost);
 router.post("/:postId", postController.votePost);
 router.put("/:postId", postController.putPost);

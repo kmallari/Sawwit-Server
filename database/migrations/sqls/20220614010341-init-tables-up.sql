@@ -15,12 +15,15 @@ CREATE TABLE `posts` (
   `userId` VARCHAR(21) NOT NULL,
   `username` VARCHAR(20) NOT NULL,
   `title` VARCHAR(300) NOT NULL,
-  `body` VARCHAR(40000) NOT NULL,
+  `body` VARCHAR(40000),
+  `image` VARCHAR(255),
+  `url` VARCHAR(255),
   `subreddit` VARCHAR(20) NOT NULL,
   `subredditIcon` VARCHAR(255) NOT NULL,
   `commentsCount` INT NOT NULL,
   `upvotes` INT NOT NULL,
   `downvotes` INT NOT NULL,
+  `type` TINYINT NOT NULL,
   `createdAt` BIGINT NOT NULL
 );
 
@@ -110,6 +113,11 @@ ALTER TABLE
   `comments`
 ADD
   INDEX `postId_index` (`postId`);
+
+ALTER TABLE
+  `comments`
+ADD
+  INDEX `userId_index` (`userId`);
 
 ALTER TABLE
   `comments`
@@ -253,6 +261,13 @@ SET
 WHERE
   id = p_id;
 
+UPDATE
+  comments
+SET
+  userProfilePicture = p_profilepicture
+WHERE
+  userId = p_id;
+
 END;
 
 CREATE PROCEDURE UpdatePassword(p_id VARCHAR(21), p_password VARCHAR(255)) BEGIN
@@ -296,6 +311,46 @@ ORDER BY
 
 END;
 
+CREATE PROCEDURE GetAllPostsUsingPagination(p_start INT, p_end INT) BEGIN
+SELECT
+  *
+FROM
+  posts
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_start, p_end;
+
+END;
+
+CREATE PROCEDURE GetSubredditPostsUsingPagination(p_start INT, p_end INT, p_name VARCHAR(20)) BEGIN
+SELECT
+  *
+FROM
+  posts
+WHERE
+  subreddit = p_name
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_start, p_end;
+
+END;
+
+CREATE PROCEDURE GetUserPostsUsingPagination(p_start INT, p_end INT, p_userId VARCHAR(21)) BEGIN
+SELECT
+  *
+FROM
+  posts
+WHERE
+  userId = p_userId
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_start, p_end;
+
+END;
+
 CREATE PROCEDURE CheckIfPostExists(p_id VARCHAR(21)) BEGIN
 SELECT
   COUNT(id)
@@ -306,7 +361,7 @@ WHERE
 
 END;
 
-CREATE PROCEDURE CreatePost(
+CREATE PROCEDURE CreateTextPost(
   IN p_ID VARCHAR(21),
   IN p_userId VARCHAR(21),
   IN p_username VARCHAR(20),
@@ -328,7 +383,8 @@ INSERT INTO
     createdAt,
     commentsCount,
     upvotes,
-    downvotes
+    downvotes,
+    TYPE
   )
 VALUES
   (
@@ -342,7 +398,108 @@ VALUES
     p_createdAt,
     0,
     0,
-    0
+    0,
+    1
+  );
+
+UPDATE
+  subreddits
+SET
+  postCount = postCount + 1
+WHERE
+  name = p_subreddit;
+
+END;
+
+CREATE PROCEDURE CreateImagePost(
+  IN p_ID VARCHAR(21),
+  IN p_userId VARCHAR(21),
+  IN p_username VARCHAR(20),
+  IN p_title VARCHAR(300),
+  IN p_imageDirectory VARCHAR(255),
+  IN p_subreddit VARCHAR(20),
+  IN p_subredditIcon VARCHAR(255),
+  IN p_createdAt BIGINT
+) BEGIN
+INSERT INTO
+  posts (
+    id,
+    userId,
+    username,
+    title,
+    image,
+    subreddit,
+    subredditIcon,
+    createdAt,
+    commentsCount,
+    upvotes,
+    downvotes,
+    TYPE
+  )
+VALUES
+  (
+    p_ID,
+    p_userId,
+    p_username,
+    p_title,
+    p_imageDirectory,
+    p_subreddit,
+    p_subredditIcon,
+    p_createdAt,
+    0,
+    0,
+    0,
+    2
+  );
+
+UPDATE
+  subreddits
+SET
+  postCount = postCount + 1
+WHERE
+  name = p_subreddit;
+
+END;
+
+CREATE PROCEDURE CreateURLPost(
+  IN p_ID VARCHAR(21),
+  IN p_userId VARCHAR(21),
+  IN p_username VARCHAR(20),
+  IN p_title VARCHAR(300),
+  IN p_url VARCHAR(255),
+  IN p_subreddit VARCHAR(20),
+  IN p_subredditIcon VARCHAR(255),
+  IN p_createdAt BIGINT
+) BEGIN
+INSERT INTO
+  posts (
+    id,
+    userId,
+    username,
+    title,
+    url,
+    subreddit,
+    subredditIcon,
+    createdAt,
+    commentsCount,
+    upvotes,
+    downvotes,
+    TYPE
+  )
+VALUES
+  (
+    p_ID,
+    p_userId,
+    p_username,
+    p_title,
+    p_url,
+    p_subreddit,
+    p_subredditIcon,
+    p_createdAt,
+    0,
+    0,
+    0,
+    3
   );
 
 UPDATE
@@ -401,6 +558,20 @@ DELETE FROM
   posts
 WHERE
   id = p_id;
+
+UPDATE
+  subreddits
+SET
+  postCount = postCount - 1
+WHERE
+  name = (
+    SELECT
+      subreddit
+    FROM
+      posts
+    WHERE
+      id = p_id
+  );
 
 END;
 
@@ -473,6 +644,23 @@ WHERE
 
 END;
 
+CREATE PROCEDURE UpdateSubredditIcon (p_name VARCHAR(21), p_icon VARCHAR(255)) BEGIN
+UPDATE
+  subreddits
+SET
+  icon = p_icon
+WHERE
+  name = p_name;
+
+UPDATE
+  posts
+SET
+  subredditIcon = p_icon
+WHERE
+  subreddit = p_name;
+
+END;
+
 CREATE PROCEDURE SearchSubreddit (p_name VARCHAR(20)) BEGIN
 SELECT
   *
@@ -480,6 +668,28 @@ FROM
   subreddits
 WHERE
   name LIKE p_name;
+
+END;
+
+CREATE PROCEDURE UpdateSubredditIcon (p_name VARCHAR(21), p_icon VARCHAR(255)) BEGIN
+UPDATE
+  subreddits
+SET
+  icon = p_icon
+WHERE
+  name = p_name;
+
+END;
+
+CREATE PROCEDURE GetRecentlyCreatedSubreddits (p_count SMALLINT) BEGIN
+SELECT
+  *
+FROM
+  subreddits
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_count;
 
 END;
 

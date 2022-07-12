@@ -5,6 +5,7 @@
 const nanoid = require("nanoid");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { postUpload } = require("./storage");
 const saltRounds = 5;
 
 const isValidUsername = (username) => {
@@ -270,9 +271,9 @@ module.exports = (usersRepository) => {
         });
     },
 
-    patchUser: (req, res) => {
+    updateUser: (req, res) => {
       new Promise((resolve, reject) => {
-        // ALL COMMENTS ARE ARE NOTES FROM SYNC
+        // n COMMENTS ARE ARE NOTES FROM SYNC
         // use promise all
         // ipromise lahat ng repo updates, if may nag-error, masasalo lahat
 
@@ -282,7 +283,12 @@ module.exports = (usersRepository) => {
         // if after matapos lahat ng validations, pwede na i-update
         // promise all muna lahat ng validations; if walang rejection, pwede na gawin yung mga updates
 
-        const { email, username, password, profilePicture } = req.body; // depende sa existing fields yung ipapass sa promise.all
+        const { email, username, password } = req.body; //
+
+        const profilePicture = req.file;
+
+        console.log(email, password, profilePicture);
+
         const id = req.params.userId;
         usersRepository.checkIfUserExists(id).then((data) => {
           if (data[0][0].length > 0) {
@@ -372,13 +378,10 @@ module.exports = (usersRepository) => {
                       .then(() => {
                         resolve("email");
                       })
-                      .catch(() => {
+                      .catch((err) => {
                         reject({
                           status: 500,
-                          error: {
-                            message:
-                              "An error occurred while updating the email.",
-                          },
+                          error: err,
                         });
                       });
                   });
@@ -392,13 +395,10 @@ module.exports = (usersRepository) => {
                       .then(() => {
                         resolve("username");
                       })
-                      .catch(() => {
+                      .catch((err) => {
                         reject({
                           status: 500,
-                          error: {
-                            message:
-                              "An error occurred while updating the username.",
-                          },
+                          error: err,
                         });
                       });
                   });
@@ -408,18 +408,21 @@ module.exports = (usersRepository) => {
                 if (validations[2]) {
                   console.log("change pp run?");
                   changeProfilePicture = new Promise((resolve, reject) => {
+                    const imagePath =
+                      "http://localhost:8080/uploads/users/" +
+                      profilePicture.filename;
+
+                    postUpload.single();
+
                     usersRepository
-                      .updateProfilePicture(id, profilePicture)
+                      .updateProfilePicture(id, imagePath)
                       .then(() => {
                         resolve("profile picture");
                       })
-                      .catch(() => {
+                      .catch((err) => {
                         reject({
                           status: 500,
-                          error: {
-                            message:
-                              "An error occurred while updating the profilePicture.",
-                          },
+                          error: err,
                         });
                       });
                   });
@@ -436,13 +439,10 @@ module.exports = (usersRepository) => {
                           .then(() => {
                             resolve("password");
                           })
-                          .catch(() => {
+                          .catch((err) => {
                             reject({
                               status: 500,
-                              error: {
-                                message:
-                                  "An error occurred while updating the password.",
-                              },
+                              error: err,
                             });
                           });
                       });
@@ -471,8 +471,11 @@ module.exports = (usersRepository) => {
                   }
                 });
               })
-              .catch((error) => {
-                reject(error);
+              .catch((err) => {
+                reject({
+                  status: 500,
+                  error: err,
+                });
               });
           } else {
             reject({

@@ -26,11 +26,11 @@ module.exports = (db, redis) => {
         parentLevel,
       ]);
     },
-    getPostComments: (postId) => {
-      return db.raw("CALL GetPostComments(?)", [postId]);
+    getPostComments: (postId, loggedInUserId) => {
+      return db.raw("CALL GetPostComments(?, ?)", [postId, loggedInUserId]);
     },
-    getNextComments: (parentId) => {
-      return db.raw("CALL GetNextComments(?)", [parentId]);
+    getNextComments: (parentId, loggedInUserId) => {
+      return db.raw("CALL GetNextComments(?, ?)", [parentId, loggedInUserId]);
     },
     deleteComment: (id) => {
       return db.raw("CALL DeleteComment(?)", [id]);

@@ -18,6 +18,7 @@ const commentController = require("../controllers/comment.controller.js")(
 );
 
 router.get("/", postController.getAllPosts);
+// router.get("/test", postController.testURL);
 router.get("/pagination", postController.getAllPostsUsingPagination);
 router.get("/subreddit/:subreddit", postController.getPostsFromSubreddit);
 router.get(

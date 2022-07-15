@@ -42,13 +42,14 @@ module.exports = (commentsRepository) => {
     getPostComments: (req, res) => {
       new Promise((resolve, reject) => {
         const postId = req.params.postId;
-        if (postId) {
+        const { loggedInUserId } = req.query;
+        if (postId && loggedInUserId) {
           commentsRepository
             .checkIfPostExists(postId)
             .then((data) => {
               if (data[0][0][0]["COUNT(id)"] > 0) {
                 commentsRepository
-                  .getPostComments(postId)
+                  .getPostComments(postId, loggedInUserId)
                   .then((data) => {
                     resolve(data[0][0]);
                   })
@@ -135,6 +136,7 @@ module.exports = (commentsRepository) => {
                                 upvotes: 0,
                                 downvotes: 0,
                                 childrenCount: 0,
+                                myVote: 0,
                               });
                             })
                             .catch((err) => {
@@ -233,35 +235,43 @@ module.exports = (commentsRepository) => {
     getParentCommentsFromPost: (req, res) => {
       new Promise((resolve, reject) => {
         const { postId } = req.params;
+        const { loggedInUserId } = req.query;
+        console.log(loggedInUserId);
+        if (postId && loggedInUserId) {
+          commentsRepository
+            .getNextComments(postId, loggedInUserId)
+            .then((data) => {
+              let comments = data[0][0];
 
-        commentsRepository
-          .getNextComments(postId)
-          .then((data) => {
-            let comments = data[0][0];
-
-            commentsRepository
-              .getCommentsFromCache(postId)
-              .then((cachedComments) => {
-                if (cachedComments) {
-                  for (let comment of cachedComments) {
-                    comment = JSON.parse(comment);
-                    addComments(
-                      comments,
-                      comment.childrenComments,
-                      comment.parentId
-                    );
+              commentsRepository
+                .getCommentsFromCache(postId, loggedInUserId)
+                .then((cachedComments) => {
+                  if (cachedComments) {
+                    for (let comment of cachedComments) {
+                      comment = JSON.parse(comment);
+                      addComments(
+                        comments,
+                        comment.childrenComments,
+                        comment.parentId
+                      );
+                    }
                   }
-                }
 
-                resolve(comments);
+                  resolve(comments);
+                });
+            })
+            .catch((err) => {
+              reject({
+                status: 500,
+                error: err,
               });
-          })
-          .catch((err) => {
-            reject({
-              status: 500,
-              error: err,
             });
+        } else {
+          reject({
+            status: 400,
+            error: { message: "Invalid/missing parameters." },
           });
+        }
       })
         .then((data) => {
           res.status(200).json(data);
@@ -274,10 +284,11 @@ module.exports = (commentsRepository) => {
     getNextComments: (req, res) => {
       new Promise((resolve, reject) => {
         const { postId } = req.params;
-        const { parentId } = req.query;
-        if (parentId) {
+        const { parentId, loggedInUserId } = req.query;
+
+        if (parentId && postId && loggedInUserId) {
           commentsRepository
-            .getNextComments(parentId)
+            .getNextComments(parentId, loggedInUserId)
             .then((data) => {
               const comments = data[0][0];
               commentsRepository
@@ -393,10 +404,9 @@ module.exports = (commentsRepository) => {
         });
     },
 
-    // broken af
     voteComment: (req, res) => {
       new Promise((resolve, reject) => {
-        const commentId = req.params.commentId;
+        const { postId, commentId } = req.params;
         const { userId, vote } = req.body;
         if (commentId && userId && vote) {
           if (vote > 1 || vote < -1) {
@@ -434,11 +444,21 @@ module.exports = (commentsRepository) => {
                               commentsRepository
                                 .voteComment(userId, commentId, vote)
                                 .then(() => {
-                                  resolve({
-                                    message: `Successfully voted comment with id: ${commentId}`,
-                                    userId: userId,
-                                    vote: vote,
-                                  });
+                                  commentsRepository
+                                    .clearCachedCommentsForPost(postId)
+                                    .then(() => {
+                                      resolve({
+                                        message: `Successfully voted comment with id: ${commentId}`,
+                                        userId: userId,
+                                        vote: vote,
+                                      });
+                                    })
+                                    .catch((err) => {
+                                      reject({
+                                        status: 500,
+                                        error: err,
+                                      });
+                                    });
                                 })
                                 .catch((err) => {
                                   reject({
@@ -455,11 +475,21 @@ module.exports = (commentsRepository) => {
                                       commentsRepository
                                         .decrementCommentUpvote(commentId)
                                         .then(() => {
-                                          resolve({
-                                            message: `Successfully removed upvote from comment with id: ${commentId}`,
-                                            userId: userId,
-                                            vote: vote,
-                                          });
+                                          commentsRepository
+                                            .clearCachedCommentsForPost(postId)
+                                            .then(() => {
+                                              resolve({
+                                                message: `Successfully removed upvote from comment with id: ${commentId}`,
+                                                userId: userId,
+                                                vote: vote,
+                                              });
+                                            })
+                                            .catch((err) => {
+                                              reject({
+                                                status: 500,
+                                                error: err,
+                                              });
+                                            });
                                         })
                                         .catch((err) => {
                                           reject({ status: 500, error: err });
@@ -468,11 +498,21 @@ module.exports = (commentsRepository) => {
                                       commentsRepository
                                         .decrementCommentDownvote(commentId)
                                         .then(() => {
-                                          resolve({
-                                            message: `Successfully removed downvote from comment with id: ${commentId}`,
-                                            userId: userId,
-                                            vote: vote,
-                                          });
+                                          commentsRepository
+                                            .clearCachedCommentsForPost(postId)
+                                            .then(() => {
+                                              resolve({
+                                                message: `Successfully removed downvote from comment with id: ${commentId}`,
+                                                userId: userId,
+                                                vote: vote,
+                                              });
+                                            })
+                                            .catch((err) => {
+                                              reject({
+                                                status: 500,
+                                                error: err,
+                                              });
+                                            });
                                         })
                                         .catch((err) => {
                                           reject({ status: 500, error: err });
@@ -490,11 +530,23 @@ module.exports = (commentsRepository) => {
                                               vote
                                             )
                                             .then(() => {
-                                              resolve({
-                                                message: `Successfully voted comment with id: ${commentId}`,
-                                                userId: userId,
-                                                vote: vote,
-                                              });
+                                              commentsRepository
+                                                .clearCachedCommentsForPost(
+                                                  postId
+                                                )
+                                                .then(() => {
+                                                  resolve({
+                                                    message: `Successfully voted comment with id: ${commentId}`,
+                                                    userId: userId,
+                                                    vote: vote,
+                                                  });
+                                                })
+                                                .catch((err) => {
+                                                  reject({
+                                                    status: 500,
+                                                    error: err,
+                                                  });
+                                                });
                                             });
                                         })
                                         .catch((err) => {
@@ -511,11 +563,23 @@ module.exports = (commentsRepository) => {
                                               vote
                                             )
                                             .then(() => {
-                                              resolve({
-                                                message: `Successfully voted comment with id: ${commentId}`,
-                                                userId: userId,
-                                                vote: vote,
-                                              });
+                                              commentsRepository
+                                                .clearCachedCommentsForPost(
+                                                  postId
+                                                )
+                                                .then(() => {
+                                                  resolve({
+                                                    message: `Successfully voted comment with id: ${commentId}`,
+                                                    userId: userId,
+                                                    vote: vote,
+                                                  });
+                                                })
+                                                .catch((err) => {
+                                                  reject({
+                                                    status: 500,
+                                                    error: err,
+                                                  });
+                                                });
                                             })
                                             .catch((err) => {
                                               reject({

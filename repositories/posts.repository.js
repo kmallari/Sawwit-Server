@@ -58,16 +58,18 @@ module.exports = (db) => {
       username,
       title,
       url,
+      linkPreview,
       subredditName,
       subredditIcon,
       createdAt
     ) => {
-      return db.raw("CALL CreateURLPost(?, ?, ?, ?, ?, ?, ?, ?)", [
+      return db.raw("CALL CreateURLPost(?, ?, ?, ?, ?, ?, ?, ?, ?)", [
         id,
         userId,
         username,
         title,
         url,
+        linkPreview,
         subredditName,
         subredditIcon,
         createdAt,
@@ -76,8 +78,8 @@ module.exports = (db) => {
     checkIfPostExists: (postId) => {
       return db.raw("CALL CheckIfPostExists(?)", [postId]);
     },
-    getOnePost: (postId) => {
-      return db.raw("CALL GetOnePost(?)", [postId]);
+    getOnePost: (postId, userId) => {
+      return db.raw("CALL GetOnePost(?, ?)", [postId, userId]);
     },
     getAllPosts: () => {
       return db.raw("CALL GetAllPosts()");
@@ -88,21 +90,32 @@ module.exports = (db) => {
     getUserPosts: (userId) => {
       return db.raw("CALL GetUserPosts(?)", [userId]);
     },
-    getAllPostsUsingPagination: (start, items) => {
-      return db.raw("CALL GetAllPostsUsingPagination(?, ?)", [start, items]);
-    },
-    getSubredditPostsUsingPagination: (start, items, subredditName) => {
-      return db.raw("CALL GetSubredditPostsUsingPagination(?, ?, ?)", [
-        start,
-        items,
-        subredditName,
-      ]);
-    },
-    getUserPostsUsingPagination: (start, items, userId) => {
-      return db.raw("CALL GetUserPostsUsingPagination(?, ?, ?)", [
+    getAllPostsUsingPagination: (start, items, userId) => {
+      return db.raw("CALL GetAllPostsUsingPagination(?, ?, ?)", [
         start,
         items,
         userId,
+      ]);
+    },
+    getSubredditPostsUsingPagination: (
+      start,
+      items,
+      subredditName,
+      loggedInUser
+    ) => {
+      return db.raw("CALL GetSubredditPostsUsingPagination(?, ?, ?, ?)", [
+        start,
+        items,
+        subredditName,
+        loggedInUser,
+      ]);
+    },
+    getUserPostsUsingPagination: (start, items, userId, loggedInUser) => {
+      return db.raw("CALL GetUserPostsUsingPagination(?, ?, ?, ?)", [
+        start,
+        items,
+        userId,
+        loggedInUser,
       ]);
     },
     doesPostExist: (postId) => {

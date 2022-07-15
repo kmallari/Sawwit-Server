@@ -5,7 +5,7 @@
 const nanoid = require("nanoid");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { postUpload } = require("./storage");
+const { userUpload } = require("./storage");
 const saltRounds = 5;
 
 const isValidUsername = (username) => {
@@ -272,6 +272,9 @@ module.exports = (usersRepository) => {
     },
 
     updateUser: (req, res) => {
+      const { email, username, password } = req.body; //
+      const profilePicture = req.file;
+      const id = req.params.userId;
       new Promise((resolve, reject) => {
         // n COMMENTS ARE ARE NOTES FROM SYNC
         // use promise all
@@ -283,13 +286,6 @@ module.exports = (usersRepository) => {
         // if after matapos lahat ng validations, pwede na i-update
         // promise all muna lahat ng validations; if walang rejection, pwede na gawin yung mga updates
 
-        const { email, username, password } = req.body; //
-
-        const profilePicture = req.file;
-
-        console.log(email, password, profilePicture);
-
-        const id = req.params.userId;
         usersRepository.checkIfUserExists(id).then((data) => {
           if (data[0][0].length > 0) {
             // there is a user that exists with the id
@@ -412,12 +408,12 @@ module.exports = (usersRepository) => {
                       "http://localhost:8080/uploads/users/" +
                       profilePicture.filename;
 
-                    postUpload.single();
+                    userUpload.single();
 
                     usersRepository
                       .updateProfilePicture(id, imagePath)
                       .then(() => {
-                        resolve("profile picture");
+                        resolve(imagePath);
                       })
                       .catch((err) => {
                         reject({
@@ -488,18 +484,46 @@ module.exports = (usersRepository) => {
         });
       })
         .then((updated) => {
-          let updatedFields = "";
+          let updatedFieldsString = "";
           for (let i = 0; i < updated.length; i++) {
             updated[i] !== undefined
-              ? (updatedFields += updated[i] + ", ")
+              ? (updatedFieldsString += updated[i] + ", ")
               : null;
           }
 
+          console.log(
+            "🚀 ~ file: user.controller.js ~ line 502 ~ .then ~ updated",
+            updated
+          );
+
           // remove last two characters in string
-          updatedFields = updatedFields.slice(0, -2);
+          updatedFieldsString = updatedFieldsString.slice(0, -2);
+          const updatedFields = {};
+          for (let i = 0; i < updated.length; i++) {
+            if (updated[i] !== undefined) {
+              console.log(
+                "🚀 ~ file: user.controller.js ~ line 508 ~ .then ~ updated[i]",
+                updated[i]
+              );
+              if (updated[i] === "email") {
+                updatedFields["email"] = email;
+              }
+              if (updated[i] === "username") {
+                updatedFields["username"] = username;
+              }
+              if (updated[i] === "password") {
+                updatedFields["password"] = "$SECRET";
+              }
+            }
+          }
+
+          if (updated[2] !== undefined) {
+            updatedFields["profilePicture"] = updated[2];
+          }
 
           res.status(200).json({
-            message: `Successfully updated the user's ${updatedFields}.`,
+            message: `Successfully updated the user's information.`,
+            updatedFields: updatedFields,
           });
         })
         .catch((error) => {

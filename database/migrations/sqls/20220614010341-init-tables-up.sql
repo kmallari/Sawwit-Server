@@ -18,6 +18,7 @@ CREATE TABLE `posts` (
   `body` VARCHAR(40000),
   `image` VARCHAR(255),
   `url` VARCHAR(255),
+  `linkPreview` VARCHAR(255),
   `subreddit` VARCHAR(20) NOT NULL,
   `subredditIcon` VARCHAR(255) NOT NULL,
   `commentsCount` INT NOT NULL,
@@ -81,11 +82,6 @@ ALTER TABLE
 ADD
   UNIQUE INDEX `email_index` (`email`);
 
-ALTER TABLE
-  `users`
-ADD
-  INDEX `createdAt_index` (`createdAt` DESC);
-
 -- CREATING INDEXES FOR SUBREDDITS;
 ALTER TABLE
   `subreddits`
@@ -113,11 +109,6 @@ ALTER TABLE
   `comments`
 ADD
   INDEX `postId_index` (`postId`);
-
-ALTER TABLE
-  `comments`
-ADD
-  INDEX `userId_index` (`userId`);
 
 ALTER TABLE
   `comments`
@@ -311,11 +302,32 @@ ORDER BY
 
 END;
 
-CREATE PROCEDURE GetAllPostsUsingPagination(p_start INT, p_items INT) BEGIN
+CREATE PROCEDURE GetAllPostsUsingPagination(
+  p_start INT,
+  p_items INT,
+  p_loggedInUserId VARCHAR(21)
+) BEGIN
 SELECT
-  *
+  posts.id,
+  posts.userId,
+  posts.username,
+  posts.title,
+  posts.body,
+  posts.subreddit,
+  posts.subredditIcon,
+  posts.commentsCount,
+  posts.upvotes,
+  posts.downvotes,
+  posts.createdAt,
+  posts.image,
+  posts.url,
+  posts.linkPreview,
+  posts.type,
+  postVotes.vote AS myVote
 FROM
   posts
+  LEFT JOIN postVotes ON posts.id = postVotes.postId
+  AND postVotes.userId = p_loggedInUserId
 ORDER BY
   createdAt DESC
 LIMIT
@@ -323,11 +335,33 @@ LIMIT
 
 END;
 
-CREATE PROCEDURE GetSubredditPostsUsingPagination(p_start INT, p_items INT, p_name VARCHAR(20)) BEGIN
+CREATE PROCEDURE GetSubredditPostsUsingPagination(
+  p_start INT,
+  p_items INT,
+  p_name VARCHAR(20),
+  p_loggedInUserId VARCHAR(21)
+) BEGIN
 SELECT
-  *
+  posts.id,
+  posts.userId,
+  posts.username,
+  posts.title,
+  posts.body,
+  posts.subreddit,
+  posts.subredditIcon,
+  posts.commentsCount,
+  posts.upvotes,
+  posts.downvotes,
+  posts.createdAt,
+  posts.image,
+  posts.url,
+  posts.linkPreview,
+  posts.type,
+  postVotes.vote AS myVote
 FROM
   posts
+  LEFT JOIN postVotes ON posts.id = postVotes.postId
+  AND postVotes.userId = p_loggedInUserId
 WHERE
   subreddit = p_name
 ORDER BY
@@ -337,27 +371,39 @@ LIMIT
 
 END;
 
-CREATE PROCEDURE GetUserPostsUsingPagination(p_start INT, p_items INT, p_userId VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetUserPostsUsingPagination(
+  p_start INT,
+  p_items INT,
+  p_userId VARCHAR(21),
+  p_loggedInUserId VARCHAR(21)
+) BEGIN
 SELECT
-  *
+  posts.id,
+  posts.userId,
+  posts.username,
+  posts.title,
+  posts.body,
+  posts.subreddit,
+  posts.subredditIcon,
+  posts.commentsCount,
+  posts.upvotes,
+  posts.downvotes,
+  posts.createdAt,
+  posts.image,
+  posts.url,
+  posts.linkPreview,
+  posts.type,
+  postVotes.vote AS myVote
 FROM
   posts
+  LEFT JOIN postVotes ON posts.id = postVotes.postId
+  AND postVotes.userId = p_loggedInUserId
 WHERE
-  userId = p_userId
+  posts.userId = p_userId
 ORDER BY
   createdAt DESC
 LIMIT
   p_start, p_items;
-
-END;
-
-CREATE PROCEDURE CheckIfPostExists(p_id VARCHAR(21)) BEGIN
-SELECT
-  COUNT(id)
-FROM
-  posts
-WHERE
-  id = p_id;
 
 END;
 
@@ -467,6 +513,7 @@ CREATE PROCEDURE CreateURLPost(
   IN p_username VARCHAR(20),
   IN p_title VARCHAR(300),
   IN p_url VARCHAR(255),
+  IN p_linkPreview VARCHAR(255),
   IN p_subreddit VARCHAR(20),
   IN p_subredditIcon VARCHAR(255),
   IN p_createdAt BIGINT
@@ -478,6 +525,7 @@ INSERT INTO
     username,
     title,
     url,
+    linkPreview,
     subreddit,
     subredditIcon,
     createdAt,
@@ -493,6 +541,7 @@ VALUES
     p_username,
     p_title,
     p_url,
+    p_linkPreview,
     p_subreddit,
     p_subredditIcon,
     p_createdAt,
@@ -521,11 +570,28 @@ WHERE
 
 END;
 
-CREATE PROCEDURE GetOnePost(p_id VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetOnePost(p_id VARCHAR(21), p_userID VARCHAR(21)) BEGIN
 SELECT
-  *
+  posts.id,
+  posts.userId,
+  posts.username,
+  posts.title,
+  posts.body,
+  posts.subreddit,
+  posts.subredditIcon,
+  posts.commentsCount,
+  posts.upvotes,
+  posts.downvotes,
+  posts.createdAt,
+  posts.image,
+  posts.url,
+  posts.linkPreview,
+  posts.type,
+  postVotes.vote AS myVote
 FROM
   posts
+  LEFT JOIN postVotes ON posts.id = postVotes.postId
+  AND postVotes.userId = p_userId
 WHERE
   id = p_id;
 
@@ -762,11 +828,25 @@ WHERE
 
 END;
 
-CREATE PROCEDURE GetPostComments(p_postid VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetPostComments(p_postid VARCHAR(21), p_loggedInUserId VARCHAR(21)) BEGIN
 SELECT
-  *
+  comments.id,
+  comments.userId,
+  comments.username,
+  comments.userProfilePicture,
+  comments.postId,
+  comments.parentId,
+  comments.body,
+  comments.createdAt,
+  comments.level,
+  comments.childrenCount,
+  comments.upvotes,
+  comments.downvotes,
+  commentVotes.vote AS myVote
 FROM
   comments
+  LEFT JOIN commentVotes ON comments.id = commentVotes.commentId
+  AND commentVotes.userId = p_loggedInUserId
 WHERE
   postId = p_postid
 ORDER BY

@@ -1,5 +1,6 @@
 const nanoid = require("nanoid");
-const { upload } = require("./storage.js");
+const ogs = require("open-graph-scraper");
+const { postUpload } = require("./storage.js");
 
 const isValidTitle = (title) => {
   return title.length > 0 && title.length <= 300;
@@ -75,7 +76,8 @@ module.exports = (postsRepository) => {
     getOnePost: (req, res) => {
       new Promise((resolve, reject) => {
         const postId = req.params.postId;
-        if (postId) {
+        const { loggedInUserId } = req.query;
+        if (postId && loggedInUserId) {
           postsRepository
             .checkIfPostExists(postId)
             .then((data) => {
@@ -86,7 +88,7 @@ module.exports = (postsRepository) => {
                 });
               } else {
                 postsRepository
-                  .getOnePost(postId)
+                  .getOnePost(postId, loggedInUserId)
                   .then((data) => {
                     resolve(data[0][0][0]);
                   })
@@ -165,27 +167,21 @@ module.exports = (postsRepository) => {
 
     getAllPostsUsingPagination: (req, res) => {
       new Promise((resolve, reject) => {
-        let { page, itemsPerPage } = req.query;
-        console.log(
-          "🚀 ~ file: post.controller.js ~ line 170 ~ newPromise ~ page",
-          page
-        );
+        let { page, itemsPerPage, loggedInUserId } = req.query;
         page = parseInt(page);
         itemsPerPage = parseInt(itemsPerPage);
 
-        if (page && itemsPerPage) {
+        console.log(page, itemsPerPage, loggedInUserId);
+
+        if (page && itemsPerPage && loggedInUserId) {
           // page 1 -> 0 - 4
           // page 2 -> 5 - 9
 
           const start = (page - 1) * itemsPerPage;
 
           postsRepository
-            .getAllPostsUsingPagination(start, itemsPerPage)
+            .getAllPostsUsingPagination(start, itemsPerPage, loggedInUserId)
             .then((data) => {
-              console.log(
-                "🚀 ~ file: post.controller.js ~ line 187 ~ .then ~ data[0][0]",
-                data[0][0]
-              );
               resolve(data[0][0]);
             })
             .catch((err) => {
@@ -197,7 +193,7 @@ module.exports = (postsRepository) => {
         } else {
           reject({
             status: 400,
-            error: { message: "Invalid/missing page or itemsPerPage." },
+            error: { message: "Invalid/missing parameters." },
           });
         }
       })
@@ -211,12 +207,12 @@ module.exports = (postsRepository) => {
 
     getSubredditPostsUsingPagination: (req, res) => {
       new Promise((resolve, reject) => {
-        let { page, itemsPerPage } = req.query;
+        let { page, itemsPerPage, loggedInUserId } = req.query;
 
         page = parseInt(page);
         itemsPerPage = parseInt(itemsPerPage);
 
-        if (page && itemsPerPage) {
+        if (page && itemsPerPage && loggedInUserId) {
           // page 1 -> 0 - 9
           // page 2 -> 10 - 19
 
@@ -228,7 +224,8 @@ module.exports = (postsRepository) => {
             .getSubredditPostsUsingPagination(
               start,
               itemsPerPage,
-              subredditName
+              subredditName,
+              loggedInUserId
             )
             .then((data) => {
               resolve(data[0][0]);
@@ -256,12 +253,12 @@ module.exports = (postsRepository) => {
 
     getUserPostsUsingPagination: (req, res) => {
       new Promise((resolve, reject) => {
-        let { page, itemsPerPage } = req.query;
+        let { page, itemsPerPage, loggedInUserId } = req.query;
 
         page = parseInt(page);
         itemsPerPage = parseInt(itemsPerPage);
 
-        if (page && itemsPerPage) {
+        if (page && itemsPerPage && loggedInUserId) {
           // page 1 -> 0 - 9
           // page 2 -> 10 - 19
 
@@ -269,7 +266,12 @@ module.exports = (postsRepository) => {
           const userId = req.params.userId;
 
           postsRepository
-            .getUserPostsUsingPagination(start, itemsPerPage, userId)
+            .getUserPostsUsingPagination(
+              start,
+              itemsPerPage,
+              userId,
+              loggedInUserId
+            )
             .then((data) => {
               resolve(data[0][0]);
             })
@@ -297,7 +299,9 @@ module.exports = (postsRepository) => {
     createPost: (req, res) => {
       new Promise((resolve, reject) => {
         let { title, body, url, userId, username, subreddit, type } = req.body;
+
         if (body === undefined) body = "";
+
         type = parseInt(type);
 
         // types:
@@ -307,13 +311,14 @@ module.exports = (postsRepository) => {
 
         const image = req.file;
 
+        console.log(title, body, url, userId, username, subreddit, type, image);
+
         if (title && userId && username && subreddit && type) {
           if (isValidTitle(title)) {
             if (isValidPostBody(body)) {
               postsRepository
                 .checkIfSubredditExists(subreddit)
                 .then((subredditData) => {
-                  console.log("subreddit data: ", subredditData[0][0][0].icon);
                   if (subredditData[0][0].length === 0) {
                     reject({
                       status: 404,
@@ -377,7 +382,9 @@ module.exports = (postsRepository) => {
                                 "http://localhost:8080/uploads/posts/" +
                                 image.filename;
 
-                              upload.single();
+                              postUpload.single();
+
+                              console.log("EROR????");
 
                               postsRepository
                                 .createImagePost(
@@ -416,34 +423,59 @@ module.exports = (postsRepository) => {
                             }
                           } else if (type === 3) {
                             if (url) {
-                              postsRepository
-                                .createUrlPost(
-                                  id,
-                                  userId,
-                                  username,
-                                  title,
-                                  url,
-                                  subreddit,
-                                  subredditData[0][0][0].icon,
-                                  Date.now()
-                                )
-                                .then(() => {
-                                  resolve({
-                                    id: id,
-                                    userId: userId,
-                                    username: username,
-                                    title: title,
-                                    url: url,
-                                    subreddit: subreddit,
-                                    subredditIcon: subredditData[0][0][0].icon,
-                                  });
-                                })
-                                .catch((err) => {
+                              // testURL: (req, res) => {
+                              //   const options = {
+                              //     url: "https://www.businessinsider.com/biden-us-use-force-against-iran-nuclear-program-as-last-resort-2022-7",
+                              //   };
+
+                              //   ogs(options, (error, results, response) => {
+                              //     const imageLink = results.ogImage.url;
+                              //     res.status(200).json({ imageLink });
+                              //   });
+                              // },
+
+                              const options = { url };
+                              ogs(options, (error, results, response) => {
+                                if (error) {
                                   reject({
                                     status: 500,
-                                    error: err,
+                                    error: error,
                                   });
-                                });
+                                } else if (results) {
+                                  const imageLink = results.ogImage.url;
+                                  postsRepository
+                                    .createURLPost(
+                                      id,
+                                      userId,
+                                      username,
+                                      title,
+                                      url,
+                                      imageLink,
+                                      subreddit,
+                                      subredditData[0][0][0].icon,
+                                      Date.now()
+                                    )
+                                    .then(() => {
+                                      resolve({
+                                        id: id,
+                                        userId: userId,
+                                        username: username,
+                                        title: title,
+                                        url: url,
+                                        linkPreview: imageLink,
+                                        subreddit: subreddit,
+                                        subredditIcon:
+                                          subredditData[0][0][0].icon,
+                                      });
+                                    })
+                                    .catch((err) => {
+                                      reject({
+                                        status: 500,
+                                        error: err,
+                                      });
+                                    });
+                                }
+                              });
                             } else {
                               reject({
                                 status: 400,

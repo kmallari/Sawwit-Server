@@ -35,6 +35,9 @@ module.exports = (db) => {
     getUserInformation: (id) => {
       return db.raw("CALL GetUserInformation(?)", [id]);
     },
+    searchUserByUsername: (username) => {
+      return db.raw("CALL SearchUserByUsername(?)", [username])
+    },
     updateEmail: (id, email) => {
       return db.raw("CALL UpdateEmail(?, ?)", [id, email]);
     },

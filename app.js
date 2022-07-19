@@ -1,10 +1,10 @@
-var createError = require("http-errors");
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-var app = express();
-var indexRouter = require("./routes/index");
+const createError = require("http-errors");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
+const app = express();
+const indexRouter = require("./routes/index");
 const cors = require("cors");
 
 // view engine setup
@@ -37,8 +37,22 @@ app.use(function (err, req, res, next) {
   res.render("error");
 });
 
-app.listen(8080, () => {
+const server = app.listen(8080, () => {
   console.log("Listening on 8080");
 });
 
+// ---
+
+// require repositories for messages and rooms here
+const db = require("./utils/db.config.js");
+const socketIo = require("socket.io");
+const io = socketIo(server, {
+  cors: {
+    origin: "http://localhost:4200",
+  },
+});
+
+const socket = require("./socket")(io, db);
+
+// io.sockets.on("connection", socketController.respond);
 module.exports = app;

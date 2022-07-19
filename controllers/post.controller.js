@@ -1,6 +1,6 @@
 const nanoid = require("nanoid");
 const ogs = require("open-graph-scraper");
-const { postUpload } = require("./storage.js");
+const { postUpload } = require("../utils/storage.js");
 
 const isValidTitle = (title) => {
   return title.length > 0 && title.length <= 300;

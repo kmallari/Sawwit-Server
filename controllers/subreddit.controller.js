@@ -1,4 +1,4 @@
-const { subredditUpload } = require("./storage");
+const { subredditUpload } = require("../utils/storage");
 
 const isValidSubreddit = (subreddit) => {
   // subreddit is 4-20 characters long
@@ -290,7 +290,6 @@ module.exports = (subredditsRepository) => {
     searchSubreddit: (req, res) => {
       new Promise((resolve, reject) => {
         const searchTerm = req.query.searchTerm + "%";
-        console.log(searchTerm);
         if (searchTerm) {
           subredditsRepository
             .searchSubreddit(searchTerm)

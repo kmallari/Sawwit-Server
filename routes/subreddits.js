@@ -1,8 +1,8 @@
 var express = require("express");
 var router = express.Router();
 
-const { subredditUpload } = require("../controllers/storage");
-const db = require("../repositories/db.config.js");
+const { subredditUpload } = require("../utils/storage");
+const db = require("../utils/db.config.js");
 const subredditsRepository =
   require("../repositories/subreddits.repository.js")(db);
 const subredditController = require("../controllers/subreddit.controller.js")(

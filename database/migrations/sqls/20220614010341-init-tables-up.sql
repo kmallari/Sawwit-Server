@@ -1,4 +1,3 @@
--- !! VOTES ARE NOT IMPLEMENTED INTO THE API YET !!
 -- TO DO: ADD SUBSTRACTING IN DELETES
 -- CREATING THE TABLES
 CREATE TABLE `users` (
@@ -51,13 +50,6 @@ CREATE TABLE `subreddits` (
   `createdAt` BIGINT NOT NULL
 );
 
--- NOT YET IMPLEMENTED SUBSCRIPTIONS AND VOTES
-CREATE TABLE `subscriptions` (
-  `userId` VARCHAR(21) NOT NULL,
-  `subredditId` VARCHAR(21) NOT NULL,
-  `createdAt` BIGINT NOT NULL
-);
-
 CREATE TABLE `postVotes` (
   `userId` VARCHAR(21) NOT NULL,
   `postId` VARCHAR(21) NOT NULL,
@@ -68,6 +60,37 @@ CREATE TABLE `commentVotes` (
   `userId` VARCHAR(21) NOT NULL,
   `commentId` VARCHAR(21) NOT NULL,
   `vote` TINYINT NOT NULL
+);
+
+-- NOT YET IMPLEMENTED SUBSCRIPTIONS INTO API
+CREATE TABLE `subscriptions` (
+  `userId` VARCHAR(21) NOT NULL,
+  `subredditId` VARCHAR(21) NOT NULL,
+  `createdAt` BIGINT NOT NULL
+);
+
+CREATE TABLE `rooms` (
+  `id` VARCHAR(21) NOT NULL PRIMARY KEY,
+  `name` VARCHAR(32) NOT NULL,
+  `numberOfParticipants` INT NOT NULL,
+  `roomImage` VARCHAR(255) NOT NULL,
+  `createdAt` BIGINT NOT NULL
+);
+
+CREATE TABLE `messages` (
+  `id` VARCHAR(21) NOT NULL PRIMARY KEY,
+  `senderId` VARCHAR(21) NOT NULL,
+  `senderUsername` VARCHAR(20) NOT NULL,
+  `senderProfilePicture` VARCHAR(255) NOT NULL,
+  `roomId` VARCHAR(21) NOT NULL,
+  `message` VARCHAR(10000) NOT NULL,
+  `createdAt` BIGINT NOT NULL
+);
+
+CREATE TABLE `roomParticipants` (
+  `roomId` VARCHAR(21) NOT NULL,
+  `userId` VARCHAR(21) NOT NULL,
+  `createdAt` BIGINT NOT NULL
 );
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -212,15 +235,21 @@ END;
 
 CREATE PROCEDURE GetUserInformation(p_id VARCHAR(21)) BEGIN
 SELECT
-  id,
-  username,
-  email,
-  profilePicture,
-  createdAt
+  *
 FROM
   users
 WHERE
   id = p_id;
+
+END;
+
+CREATE PROCEDURE SearchUserByUsername(p_username VARCHAR(20)) BEGIN
+SELECT
+  *
+FROM
+  users
+WHERE
+  username LIKE p_username;
 
 END;
 
@@ -828,7 +857,10 @@ WHERE
 
 END;
 
-CREATE PROCEDURE GetPostComments(p_postid VARCHAR(21), p_loggedInUserId VARCHAR(21)) BEGIN
+CREATE PROCEDURE GetPostComments(
+  p_postid VARCHAR(21),
+  p_loggedInUserId VARCHAR(21)
+) BEGIN
 SELECT
   comments.id,
   comments.userId,
@@ -1098,5 +1130,137 @@ DELETE FROM
 WHERE
   userId = p_userId
   AND subredditId = p_subredditId;
+
+END;
+
+-- STORE PROCEDURE FOR ROOMS
+CREATE PROCEDURE CreateRoom (
+  p_id VARCHAR(21),
+  p_name VARCHAR(32),
+  p_roomImage VARCHAR(255),
+  p_createdAt BIGINT
+) BEGIN
+INSERT INTO
+  rooms(
+    id,
+    name,
+    numberOfParticipants,
+    roomImage,
+    createdAt
+  )
+VALUES
+  (
+    p_id,
+    p_name,
+    0,
+    p_roomImage,
+    p_createdAt
+  );
+
+END;
+
+CREATE PROCEDURE CreateMessage (
+  p_id VARCHAR(21),
+  p_senderId VARCHAR(21),
+  p_senderUsername VARCHAR(32),
+  p_senderProfilePicture VARCHAR(255),
+  p_roomId VARCHAR(21),
+  p_message VARCHAR(10000),
+  p_createdAt BIGINT
+) BEGIN
+INSERT INTO
+  messages(
+    id,
+    senderId,
+    senderUsername,
+    senderProfilePicture,
+    roomId,
+    message,
+    createdAt
+  )
+VALUES
+  (
+    p_id,
+    p_senderId,
+    p_senderUsername,
+    p_senderProfilePicture,
+    p_roomId,
+    p_message,
+    p_createdAt
+  );
+
+END;
+
+CREATE PROCEDURE GetRoomMessages (
+  p_roomId VARCHAR(21),
+  p_start INT,
+  p_items INT
+) BEGIN
+SELECT
+  *
+FROM
+  messages
+WHERE
+  roomId = p_roomId
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_start, p_items;
+
+END;
+
+CREATE PROCEDURE AddToRoom (
+  p_id VARCHAR(21),
+  p_userId VARCHAR(21),
+  p_createdAt BIGINT
+) BEGIN
+INSERT INTO
+  roomParticipants(roomId, userId, createdAt)
+VALUES
+  (p_id, p_userId, p_createdAt);
+
+UPDATE
+  rooms
+SET
+  numberOfParticipants = numberOfParticipants + 1
+WHERE
+  id = p_id;
+
+END;
+
+CREATE PROCEDURE GetRoomParticipants (p_roomId VARCHAR(21)) BEGIN
+SELECT
+  *
+FROM
+  roomParticipants
+WHERE
+  roomId = p_roomId
+ORDER BY
+  createdAt DESC;
+
+END;
+
+CREATE PROCEDURE CheckIfUserIsInRoom (p_userId VARCHAR(21), p_roomId VARCHAR(21)) BEGIN
+SELECT
+  1
+FROM
+  roomParticipants
+WHERE
+  userId = p_userId
+  AND roomId = p_roomId;
+
+END;
+
+CREATE PROCEDURE GetUserRecentRooms (p_userId VARCHAR(21), p_start INT, p_items INT) BEGIN
+SELECT
+  *
+FROM
+  roomParticipants
+WHERE
+  userId = p_userId
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_start, p_items;
 
 END;

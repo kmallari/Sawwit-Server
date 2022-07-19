@@ -1,11 +1,7 @@
-// we don't see numbered pagination; every time we scroll then we load another page; think about not returning all the posts in a subreddit, for example
-// add error mappings for errors
-// move patch requests to body
-
 const nanoid = require("nanoid");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { userUpload } = require("./storage");
+const { userUpload } = require("../utils/storage");
 const saltRounds = 5;
 
 const isValidUsername = (username) => {
@@ -269,6 +265,24 @@ module.exports = (usersRepository) => {
         .catch((error) => {
           res.status(error.status).json(error.error);
         });
+    },
+
+    searchUser: async (req, res) => {
+      const searchTerm = req.query.searchTerm + "%";
+      try {
+        if (searchTerm) {
+          const users = await usersRepository.searchUserByUsername(searchTerm);
+          if (users[0][0].length > 0) {
+            res.status(200).json(users[0][0]);
+          } else {
+            throw new Error("User not found.");
+          }
+        } else {
+          throw new Error("Search term not found.");
+        }
+      } catch (error) {
+        res.status(500).json(error);
+      }
     },
 
     updateUser: (req, res) => {

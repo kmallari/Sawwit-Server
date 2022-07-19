@@ -1,8 +1,8 @@
 var express = require("express");
 var router = express.Router();
 
-const { userUpload } = require("../controllers/storage");
-const db = require("../repositories/db.config.js"); // change variable name to db
+const { userUpload } = require("../utils/storage");
+const db = require("../utils/db.config.js");
 const usersRepository = require("../repositories/users.repository.js")(db);
 
 const userController = require("../controllers/user.controller.js")(
@@ -10,6 +10,7 @@ const userController = require("../controllers/user.controller.js")(
 );
 
 router.get("/", userController.getAllUsers);
+router.get("/search", userController.searchUser);
 router.post("/register", userController.registerUser);
 router.post("/login", userController.loginUser);
 router.get("/:userId", userController.getUser);

@@ -1,8 +1,8 @@
 var express = require("express");
 var router = express.Router();
-const { postUpload } = require("../controllers/storage");
-const db = require("../repositories/db.config.js");
-const redis = require("../repositories/redis.config");
+const { postUpload } = require("../utils/storage");
+const db = require("../utils/db.config.js");
+const redis = require("../utils/redis.config");
 
 const postsRepository = require("../repositories/posts.repository.js")(db);
 const postController = require("../controllers/post.controller.js")(
@@ -18,7 +18,6 @@ const commentController = require("../controllers/comment.controller.js")(
 );
 
 router.get("/", postController.getAllPosts);
-// router.get("/test", postController.testURL);
 router.get("/pagination", postController.getAllPostsUsingPagination);
 router.get("/subreddit/:subreddit", postController.getPostsFromSubreddit);
 router.get(

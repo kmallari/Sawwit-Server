@@ -3,42 +3,52 @@ module.exports = (io, chatRepository) => {
   io.sockets.on("connection", (socket) => {
     console.log("A user connected!");
 
-    // // pwede ilipat yung buo sa isang post api  call
-    // socket.on("createRoom", async (users) => {
-    //   const roomId = nanoid();
-    //   const roomName = users.map((user) => user.username).join(", ");
-
-    //   // pwedeng gawing post api call
-    //   // once mareflect yung list of room, doon palang magjojoin
-    //   await chatRepository.createRoom(
-    //     roomId,
-    //     roomName,
-    //     users.length,
-    //     "imagelinkhere",
-    //     Date.now()
-    //   );
-
-    //   // for (let user of users)
-    //   // it dapat gamitin ^
-
-    //   users.forEach(async (user) => {
-    //     await chatRepository.addUserToRoom(roomId, user.id, Date.now());
-    //   });
-
-    //   socket.join(roomId);
-    // });
-
-    socket.on("joinRoom", async (roomId) => {
-      console.log("Joining room...");
+    socket.on("joinRoom", async (userId, roomId) => {
+      console.log(`Attempting to join room ${roomId}`);
       const sockitID = socket.id;
       console.log(sockitID);
-      socket.join(roomId);
+
+      try {
+        const data = await chatRepository.checkIfUserIsInRoom(userId, roomId);
+        if (data[0][0].length >= 1) {
+          socket.join(roomId);
+          console.log("Room joined successfully.");
+        } else {
+          console.log("User is not in the room.");
+        }
+      } catch (error) {
+        console.error(error);
+      }
     });
 
-    socket.on("sendMessage", async (roomId, message) => {
-      console.log("🚀 ~ file: socket.js ~ line 39 ~ socket.on ~ roomId", roomId)
-      console.log("🚀 ~ file: socket.js ~ line 39 ~ socket.on ~ message", message)
-      io.sockets.to(roomId).emit("receiveMessage", message);
+    socket.on("sendMessage", async (user, roomId, message) => {
+      console.log(
+        "🚀 ~ file: socket.js ~ line 39 ~ socket.on ~ roomId",
+        roomId
+      );
+      console.log(
+        "🚀 ~ file: socket.js ~ line 39 ~ socket.on ~ message",
+        message
+      );
+
+      // await adding messages to db
+      const chatId = nanoid.nanoid();
+      const createdAt = Date.now();
+      try {
+        const data = await chatRepository.createMessage(
+          chatId,
+          user.id,
+          user.username,
+          user.profilePicture,
+          roomId,
+          message,
+          createdAt
+        );
+        console.log("🚀 ~ file: socket.js ~ line 47 ~ socket.on ~ data", data[0][0][0])
+        io.sockets.to(roomId).emit("receiveMessage", data[0][0][0]);
+      } catch (error) {
+        console.error(error);
+      }
     });
 
     socket.on("disconnect", () => {

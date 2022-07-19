@@ -74,6 +74,7 @@ CREATE TABLE `rooms` (
   `name` VARCHAR(32) NOT NULL,
   `numberOfParticipants` INT NOT NULL,
   `roomImage` VARCHAR(255) NOT NULL,
+  `updatedAt` BIGINT NOT NULL,
   `createdAt` BIGINT NOT NULL
 );
 
@@ -1166,6 +1167,7 @@ CREATE PROCEDURE CreateMessage (
   p_senderProfilePicture VARCHAR(255),
   p_roomId VARCHAR(21),
   p_message VARCHAR(10000),
+  p_updatedAt BIGINT,
   p_createdAt BIGINT
 ) BEGIN
 INSERT INTO
@@ -1176,6 +1178,7 @@ INSERT INTO
     senderProfilePicture,
     roomId,
     message,
+    updatedAt,
     createdAt
   )
 VALUES
@@ -1186,8 +1189,23 @@ VALUES
     p_senderProfilePicture,
     p_roomId,
     p_message,
+    p_updatedAt,
     p_createdAt
   );
+
+UPDATE
+  rooms
+SET
+  updatedAt = p_updatedAt
+WHERE
+  id = p_roomId;
+
+SELECT
+  *
+FROM
+  messages
+WHERE
+  id = p_id;
 
 END;
 
@@ -1251,15 +1269,22 @@ WHERE
 
 END;
 
-CREATE PROCEDURE GetUserRecentRooms (p_userId VARCHAR(21), p_start INT, p_items INT) BEGIN
+CREATE PROCEDURE GetRoomsUserIsIn (p_userId VARCHAR(21), p_start INT, p_items INT) BEGIN
 SELECT
   *
 FROM
-  roomParticipants
+  rooms
 WHERE
-  userId = p_userId
+  id IN (
+    SELECT
+      roomId
+    FROM
+      roomParticipants
+    WHERE
+      userId = p_userId
+  )
 ORDER BY
-  createdAt DESC
+  updatedAt DESC
 LIMIT
   p_start, p_items;
 

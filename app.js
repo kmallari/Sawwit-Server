@@ -51,8 +51,9 @@ const io = socketIo(server, {
     origin: "http://localhost:4200",
   },
 });
+const chatRepository = require("./repositories/chat.repository")(db);
 
-const socket = require("./socket")(io, db);
+const socket = require("./socket")(io, chatRepository);
 
 // io.sockets.on("connection", socketController.respond);
 module.exports = app;

@@ -7,5 +7,8 @@ const chatController = require("../controllers/chat.controller.js")(
 );
 
 router.post("/", chatController.createRoom);
+router.post("/createMessage", chatController.createMessage);
+router.get("/rooms/:userId", chatController.getRoomsUserIsIn);
+router.get("/messages/:roomId", chatController.getRoomMessages);
 
 module.exports = router;

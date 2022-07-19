@@ -28,16 +28,19 @@ module.exports = (db) => {
       ]);
     },
     checkIfUserIsInRoom: (userId, roomId) => {
-      return db.raw ("CALL CheckIfUserIsInRoom(?, ?)", [userId, roomId])
+      return db.raw("CALL CheckIfUserIsInRoom(?, ?)", [userId, roomId]);
     },
-    getRoomMessages: (roomId) => {
-      return db.raw("CALL GetRoomMessages(?)", [roomId]);
+    getRoomMessages: (roomId, start, items) => {
+      return db.raw("CALL GetRoomMessages(?, ?, ?)", [roomId, start, items]);
     },
     addToRoom: (roomId, userId, createdAt) => {
       return db.raw("CALL AddToRoom(?, ?, ?)", [roomId, userId, createdAt]);
     },
     getRoomParticipants: (roomId) => {
       return db.raw("CALL GetRoomParticipants(?)", [roomId]);
+    },
+    getRoomsUserIsIn: (userId, start, end) => {
+      return db.raw("CALL GetRoomsUserIsIn(?, ?, ?)", [userId, start, end]);
     },
   };
   return messagesRepository;

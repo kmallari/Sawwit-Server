@@ -8,7 +8,15 @@ const chatController = require("../controllers/chat.controller.js")(
 
 router.post("/", chatController.createRoom);
 router.post("/createMessage", chatController.createMessage);
-router.get("/rooms/:userId", chatController.getRoomsUserIsIn);
-router.get("/messages/:roomId", chatController.getRoomMessages);
+router.get("/users/:userId", chatController.getRoomsUserIsIn);
+router.get("/invite/user/:userId", chatController.getUserRoomInvitations);
+router.post("/invite/room/:roomId", chatController.inviteMultipleUsersToRoom);
+router.post(
+  "/invite/room/:roomId/response",
+  chatController.respondToInvitation
+);
+router.get("/:roomId", chatController.getRoomInfo);
+router.get("/:roomId/messages", chatController.getRoomMessages);
+router.put("/:roomId", chatController.changeRoomName);
 
 module.exports = router;

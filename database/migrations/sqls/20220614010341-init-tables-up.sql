@@ -94,6 +94,16 @@ CREATE TABLE `roomParticipants` (
   `createdAt` BIGINT NOT NULL
 );
 
+CREATE TABLE `roomInvitations` (
+  `userId` VARCHAR(21) NOT NULL,
+  `invitedById` VARCHAR(21) NOT NULL,
+  `invitedByUsername` VARCHAR(20) NOT NULL,
+  `roomId` VARCHAR(21) NOT NULL,
+  `roomName` VARCHAR(32) NOT NULL,
+  `roomImage` VARCHAR(255) NOT NULL,
+  `createdAt` BIGINT NOT NULL
+);
+
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- CREATING INDEXES FOR USERS
 ALTER TABLE
@@ -1147,6 +1157,7 @@ INSERT INTO
     name,
     numberOfParticipants,
     roomImage,
+    updatedAt,
     createdAt
   )
 VALUES
@@ -1155,6 +1166,7 @@ VALUES
     p_name,
     0,
     p_roomImage,
+    p_createdAt,
     p_createdAt
   );
 
@@ -1178,7 +1190,6 @@ INSERT INTO
     senderProfilePicture,
     roomId,
     message,
-    updatedAt,
     createdAt
   )
 VALUES
@@ -1189,7 +1200,6 @@ VALUES
     p_senderProfilePicture,
     p_roomId,
     p_message,
-    p_updatedAt,
     p_createdAt
   );
 
@@ -1206,6 +1216,18 @@ FROM
   messages
 WHERE
   id = p_id;
+
+END;
+
+CREATE PROCEDURE GetRoomInfo (
+  p_roomId VARCHAR(21)
+) BEGIN
+SELECT
+  *
+FROM
+  rooms
+WHERE
+  id = p_roomId;
 
 END;
 
@@ -1230,12 +1252,14 @@ END;
 CREATE PROCEDURE AddToRoom (
   p_id VARCHAR(21),
   p_userId VARCHAR(21),
+  p_username VARCHAR(20),
+  p_userProfilePicture VARCHAR(255),
   p_createdAt BIGINT
 ) BEGIN
 INSERT INTO
-  roomParticipants(roomId, userId, createdAt)
+  roomParticipants(roomId, userId, username, userProfilePicture, createdAt)
 VALUES
-  (p_id, p_userId, p_createdAt);
+  (p_id, p_userId, p_username, p_userProfilePicture, p_createdAt);
 
 UPDATE
   rooms
@@ -1287,5 +1311,111 @@ ORDER BY
   updatedAt DESC
 LIMIT
   p_start, p_items;
+
+END;
+
+CREATE PROCEDURE InviteUserToRoom (
+  p_userId VARCHAR(21),
+  p_invitedById VARCHAR(21),
+  p_invitedByUsername VARCHAR(20),
+  p_roomId VARCHAR(21),
+  p_roomName VARCHAR(32),
+  p_roomImage VARCHAR(255),
+  p_createdAt BIGINT
+) BEGIN
+INSERT INTO
+  roomInvitations(userId, invitedById, invitedByUsername, roomId, roomName, roomImage, createdAt)
+VALUES
+  (
+    p_userId,
+    p_invitedById,
+    p_invitedByUsername,
+    p_roomId,
+    p_roomName,
+    p_roomImage,
+    p_createdAt
+  );
+
+END;
+
+CREATE PROCEDURE GetUserInvitations (
+  p_userId VARCHAR(21),
+  p_start INT,
+  p_items INT
+) BEGIN
+SELECT
+  *
+FROM
+  roomInvitations
+WHERE
+  userId = p_userId
+ORDER BY
+  createdAt DESC
+LIMIT
+  p_start, p_items;
+
+END;
+
+CREATE PROCEDURE DeleteInvitation (
+  p_userId VARCHAR(21),
+  p_roomId VARCHAR(21)
+) BEGIN
+DELETE FROM
+  roomInvitations
+WHERE
+  userId = p_userId
+  AND roomId = p_roomId;
+
+END;
+
+CREATE PROCEDURE CheckIfUserHasBeenInvited (
+  p_userId VARCHAR(21),
+  p_roomId VARCHAR(21)
+) BEGIN
+SELECT
+  1
+FROM
+  roomInvitations
+WHERE
+  userId = p_userId
+  AND roomId = p_roomId;
+
+END;
+
+CREATE PROCEDURE DeleteRoom(p_id VARCHAR(21)) BEGIN
+DELETE FROM
+  rooms
+WHERE
+  id = p_id;
+
+DELETE FROM
+  roomParticipants
+WHERE
+  roomId = p_id;
+
+DELETE FROM
+  roomInvitations
+WHERE
+  roomId = p_id;
+
+DELETE FROM
+  messages
+WHERE
+  roomId = p_id;
+
+END;
+
+CREATE PROCEDURE ChangeRoomName (
+  p_id VARCHAR(21),
+  p_name VARCHAR(32),
+  p_updatedAt BIGINT
+) BEGIN
+UPDATE
+  rooms
+SET
+  name = p_name,
+  updatedAt = p_updatedAt
+WHERE
+  id = p_id;
 
 END;
